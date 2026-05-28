@@ -1,0 +1,87 @@
+<div class="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
+    <div class="bg-gray-900 border border-gray-700 rounded-xl shadow-2xl p-6 w-96 flex flex-col gap-4">
+        <h2 class="text-sm font-bold uppercase tracking-wider text-gray-300">Add Trailer</h2>
+
+        <div>
+            <label class="text-xs text-gray-500 mb-1 block">Type</label>
+            <select class="w-full bg-gray-800 border border-gray-700 rounded px-3 py-1.5 text-sm outline-none focus:ring-1 ring-blue-500"
+                    @onchange="OnTypeChanged">
+                <option value="Standard53">53' Standard (630"×98"×110")</option>
+                <option value="Standard48">48' Standard (576"×98"×110")</option>
+                <option value="Standard40">40' Standard (480"×98"×110")</option>
+                <option value="Standard28">28' Standard (336"×96"×110")</option>
+                <option value="Custom">Custom…</option>
+            </select>
+        </div>
+
+        @if (_isCustom)
+        {
+            <div class="flex gap-2">
+                <div class="flex-1">
+                    <label class="text-xs text-gray-500 block mb-1">Length (in)</label>
+                    <input class="w-full bg-gray-800 border border-gray-700 rounded px-2 py-1.5 text-sm outline-none focus:ring-1 ring-blue-500"
+                           type="number" @bind="_customL" />
+                </div>
+                <div class="flex-1">
+                    <label class="text-xs text-gray-500 block mb-1">Width (in)</label>
+                    <input class="w-full bg-gray-800 border border-gray-700 rounded px-2 py-1.5 text-sm outline-none focus:ring-1 ring-blue-500"
+                           type="number" @bind="_customW" />
+                </div>
+                <div class="flex-1">
+                    <label class="text-xs text-gray-500 block mb-1">Height (in)</label>
+                    <input class="w-full bg-gray-800 border border-gray-700 rounded px-2 py-1.5 text-sm outline-none focus:ring-1 ring-blue-500"
+                           type="number" @bind="_customH" />
+                </div>
+            </div>
+        }
+
+        <div>
+            <label class="text-xs text-gray-500 mb-1 block">Friendly name (optional)</label>
+            <input class="w-full bg-gray-800 border border-gray-700 rounded px-3 py-1.5 text-sm outline-none focus:ring-1 ring-blue-500"
+                   placeholder="e.g. Morning Run"
+                   @bind="_friendlyName" />
+        </div>
+
+        <div class="flex gap-3 mt-2">
+            <button class="flex-1 py-2 text-sm bg-blue-600 hover:bg-blue-500 rounded font-medium transition-colors"
+                    @onclick="Confirm">
+                Add
+            </button>
+            <button class="flex-1 py-2 text-sm border border-gray-700 hover:border-gray-500 rounded transition-colors"
+                    @onclick="() => OnCancel.InvokeAsync()">
+                Cancel
+            </button>
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter] public EventCallback<(TrailerDimensions dims, string? name)> OnConfirm { get; set; }
+    [Parameter] public EventCallback OnCancel { get; set; }
+
+    private bool _isCustom;
+    private float _customL = 630f, _customW = 98f, _customH = 110f;
+    private string? _friendlyName;
+    private TrailerType _selectedType = TrailerType.Standard53;
+
+    private void OnTypeChanged(ChangeEventArgs e)
+    {
+        if (Enum.TryParse<TrailerType>(e.Value?.ToString(), out var t) && t != TrailerType.Custom)
+        {
+            _selectedType = t;
+            _isCustom = false;
+        }
+        else
+        {
+            _isCustom = true;
+        }
+    }
+
+    private void Confirm()
+    {
+        TrailerDimensions dims = _isCustom
+            ? new(_customL, _customW, _customH)
+            : TrailerDimensions.Presets[_selectedType];
+        OnConfirm.InvokeAsync((dims, string.IsNullOrWhiteSpace(_friendlyName) ? null : _friendlyName.Trim()));
+    }
+}

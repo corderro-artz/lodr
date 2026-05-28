@@ -1,0 +1,136 @@
+@inject WorkspaceState WS
+@inject CapacityService CapSvc
+
+<div class="relative rounded-lg border-2 bg-gray-900 transition-all cursor-pointer flex-shrink-0 @BorderClass @ShadowClass"
+     style="min-width: 280px;"
+     @onclick="Select"
+     @ondragover:preventDefault
+     @ondrop="OnDrop"
+     @oncontextmenu="OnContextMenu"
+     @oncontextmenu:preventDefault>
+
+    <div class="flex items-center justify-between px-3 py-2 border-b border-gray-700">
+        <div class="flex items-center gap-2">
+            <span class="text-sm font-bold text-white">@Trailer.Id</span>
+            @if (Trailer.FriendlyName is not null)
+            {
+                <span class="text-xs text-gray-400">@Trailer.FriendlyName</span>
+            }
+        </div>
+        <div class="flex items-center gap-2">
+            @if (CurrentFullState == FullState.NearFull)
+            {
+                <span class="text-[10px] font-bold text-amber-400 uppercase tracking-wider">Near Full</span>
+            }
+            else if (CurrentFullState == FullState.Full)
+            {
+                <span class="text-[10px] font-bold text-red-400 uppercase tracking-wider">Full</span>
+            }
+            <span class="text-xs text-gray-500">@Trailer.PlacedPallets.Count / @MaxCap</span>
+        </div>
+    </div>
+
+    <div class="p-2 flex flex-wrap gap-1 min-h-[60px]">
+        @foreach (var pallet in Trailer.PlacedPallets.OrderBy(p => p.Index))
+        {
+            var type = GetType(pallet.TypeId);
+            if (type is null) continue;
+            <PalletCell Pallet="pallet"
+                        TrailerId="Trailer.Id"
+                        PalletType="type"
+                        OtherTrailers="OtherTrailers"
+                        OtherTypes="OtherTypes" />
+        }
+
+        @if (!Trailer.PlacedPallets.Any())
+        {
+            <div class="w-full text-center text-xs text-gray-600 py-2">Empty — drag a pallet type here</div>
+        }
+    </div>
+
+    <div class="h-1 mx-3 mb-2 rounded-full bg-gray-800 overflow-hidden">
+        <div class="h-full rounded-full transition-all @BarColor" style="width: @BarWidth"></div>
+    </div>
+</div>
+
+@if (_showMenu)
+{
+    <div class="fixed inset-0 z-40" @onclick="() => _showMenu = false"></div>
+    <div class="fixed z-50 bg-gray-800 border border-gray-700 rounded shadow-xl py-1 text-xs"
+         style="left: @(_menuX)px; top: @(_menuY)px; min-width: 160px;">
+        <button class="w-full text-left px-3 py-1.5 hover:bg-gray-700"
+                @onclick="OpenInTab">Open in tab</button>
+        <button class="w-full text-left px-3 py-1.5 hover:bg-gray-700 text-red-400"
+                @onclick="Remove">Remove trailer</button>
+    </div>
+}
+
+@code {
+    [Parameter, EditorRequired] public TrailerInstance Trailer { get; set; } = null!;
+    [Parameter] public IReadOnlyList<TrailerInstance> OtherTrailers { get; set; } = [];
+    [Parameter] public IReadOnlyList<PalletType> OtherTypes { get; set; } = [];
+
+    private bool _showMenu;
+    private double _menuX, _menuY;
+
+    private FullState CurrentFullState =>
+        WS.Current is null ? FullState.Normal
+        : CapSvc.GetFullState(Trailer, WS.Current.PalletTypes);
+
+    private int MaxCap =>
+        WS.Current is null || !WS.Current.PalletTypes.Any() ? 0
+        : WS.Current.PalletTypes.Max(t => CapSvc.GetCapacity(Trailer.Dimensions, t));
+
+    private float Fraction =>
+        WS.Current is null ? 0f
+        : CapSvc.GetUsedFraction(Trailer, WS.Current.PalletTypes);
+
+    private string BorderClass => CurrentFullState switch
+    {
+        FullState.Full => "border-red-600",
+        FullState.NearFull => "border-amber-500",
+        _ => WS.SelectedTrailerId == Trailer.Id ? "border-blue-500" : "border-gray-700"
+    };
+
+    private string ShadowClass => WS.SelectedTrailerId == Trailer.Id ? "shadow-lg shadow-blue-900/40" : "";
+
+    private string BarColor => CurrentFullState switch
+    {
+        FullState.Full => "bg-red-500",
+        FullState.NearFull => "bg-amber-500",
+        _ => "bg-blue-500"
+    };
+
+    private string BarWidth => $"{Math.Min(Fraction * 100f, 100f):F0}%";
+
+    private PalletType? GetType(string typeId) =>
+        WS.Current?.PalletTypes.FirstOrDefault(t => t.Id == typeId);
+
+    private void Select() => WS.SelectTrailer(Trailer.Id);
+
+    private void OnDrop()
+    {
+        var typeId = PalettePanel.DraggedTypeId;
+        PalettePanel.ClearDrag();
+        if (typeId is null) return;
+        WS.TryAddPallet(Trailer.Id, typeId);
+    }
+
+    private void OnContextMenu(MouseEventArgs e)
+    {
+        _menuX = e.ClientX; _menuY = e.ClientY;
+        _showMenu = true;
+    }
+
+    private void OpenInTab()
+    {
+        _showMenu = false;
+        WS.OpenTrailerTab(Trailer.Id);
+    }
+
+    private void Remove()
+    {
+        _showMenu = false;
+        WS.RemoveTrailer(Trailer.Id);
+    }
+}
