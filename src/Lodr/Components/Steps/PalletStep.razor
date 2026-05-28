@@ -1,0 +1,115 @@
+@inject AppState AppState
+@inject PersistenceInterop Persistence
+
+<div class="h-full flex flex-col gap-6 p-6 max-w-2xl mx-auto">
+    <div>
+        <h2 class="text-2xl font-bold">Pallet Dimensions</h2>
+        <p class="text-gray-400 text-sm mt-1">Enter pallet dimensions and orientation rules.</p>
+    </div>
+
+    <div class="grid grid-cols-3 gap-4">
+        <div>
+            <label class="text-xs text-gray-400 font-medium uppercase tracking-wide">Length (in)</label>
+            <input type="number" data-dim="length" min="1" step="0.5"
+                   class="mt-1 w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2
+                          text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                   value="@_length"
+                   @onchange="async e => { if (float.TryParse(e.Value?.ToString(), out var v)) await UpdateSpec(v, _width, _height, _canRotate, _quantity); }" />
+        </div>
+        <div>
+            <label class="text-xs text-gray-400 font-medium uppercase tracking-wide">Width (in)</label>
+            <input type="number" data-dim="width" min="1" step="0.5"
+                   class="mt-1 w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2
+                          text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                   value="@_width"
+                   @onchange="async e => { if (float.TryParse(e.Value?.ToString(), out var v)) await UpdateSpec(_length, v, _height, _canRotate, _quantity); }" />
+        </div>
+        <div>
+            <label class="text-xs text-gray-400 font-medium uppercase tracking-wide">Height (in)</label>
+            <input type="number" data-dim="height" min="1" step="0.5"
+                   class="mt-1 w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2
+                          text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                   value="@_height"
+                   @onchange="async e => { if (float.TryParse(e.Value?.ToString(), out var v)) await UpdateSpec(_length, _width, v, _canRotate, _quantity); }" />
+        </div>
+    </div>
+
+    <div class="flex items-center justify-between bg-gray-800 rounded-xl px-4 py-3">
+        <div>
+            <p class="text-sm font-medium">Allow Rotation</p>
+            <p class="text-xs text-gray-500">Rotate 90° to maximize fit</p>
+        </div>
+        <button class="@(_canRotate
+                          ? "w-12 h-6 rounded-full bg-blue-600 relative transition-colors"
+                          : "w-12 h-6 rounded-full bg-gray-700 relative transition-colors")"
+                @onclick="ToggleRotation">
+            <span class="@(_canRotate
+                            ? "absolute right-1 top-1 w-4 h-4 rounded-full bg-white transition-all"
+                            : "absolute left-1 top-1 w-4 h-4 rounded-full bg-white transition-all")"></span>
+        </button>
+    </div>
+
+    <div class="flex flex-col gap-2">
+        <label class="text-xs text-gray-400 font-medium uppercase tracking-wide">
+            Fixed Quantity
+            <span class="ml-1 text-gray-600">(leave blank to calculate maximum)</span>
+        </label>
+        <input type="number" min="1" step="1"
+               class="w-32 bg-gray-800 border border-gray-700 rounded-lg px-3 py-2
+                      text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+               value="@(_quantity?.ToString() ?? "")"
+               placeholder="Auto"
+               @onchange="OnQuantityChanged" />
+    </div>
+
+    @if (AppState.Pallet is not null)
+    {
+        <div class="mt-auto bg-gray-800 rounded-xl p-4 grid grid-cols-4 gap-4 text-sm">
+            <div><p class="text-gray-500 text-xs">Length</p><p class="font-semibold">@AppState.Pallet.Length″</p></div>
+            <div><p class="text-gray-500 text-xs">Width</p><p class="font-semibold">@AppState.Pallet.Width″</p></div>
+            <div><p class="text-gray-500 text-xs">Height</p><p class="font-semibold">@AppState.Pallet.Height″</p></div>
+            <div><p class="text-gray-500 text-xs">Rotation</p><p class="font-semibold">@(AppState.Pallet.CanRotate ? "Yes" : "No")</p></div>
+        </div>
+    }
+</div>
+
+@code {
+    private float _length = PalletSpec.GmaStandard.Length;
+    private float _width  = PalletSpec.GmaStandard.Width;
+    private float _height = PalletSpec.GmaStandard.Height;
+    private bool  _canRotate = PalletSpec.GmaStandard.CanRotate;
+    private int?  _quantity;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var last = await Persistence.GetLastPalletAsync();
+        if (last is not null)
+        {
+            _length = last.Length; _width = last.Width; _height = last.Height;
+            _canRotate = last.CanRotate;
+        }
+        CommitSpec();
+    }
+
+    private async Task UpdateSpec(float l, float w, float h, bool rotate, int? qty)
+    {
+        _length = l; _width = w; _height = h; _canRotate = rotate; _quantity = qty;
+        CommitSpec();
+        await Persistence.SaveLastPalletAsync(new PalletSpec(l, w, h, rotate, qty));
+    }
+
+    private async Task ToggleRotation() =>
+        await UpdateSpec(_length, _width, _height, !_canRotate, _quantity);
+
+    private void OnQuantityChanged(ChangeEventArgs e)
+    {
+        _quantity = int.TryParse(e.Value?.ToString(), out int q) ? q : null;
+        CommitSpec();
+    }
+
+    private void CommitSpec()
+    {
+        var spec = new PalletSpec(_length, _width, _height, _canRotate, _quantity);
+        if (spec.IsValid) AppState.SetPallet(spec);
+    }
+}
