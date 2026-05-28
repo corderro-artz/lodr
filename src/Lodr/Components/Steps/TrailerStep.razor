@@ -35,7 +35,7 @@
                        class="mt-1 w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2
                               text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                        value="@_custom.Length"
-                       @onchange="e => UpdateCustom(float.Parse(e.Value!.ToString()!), _custom.Width, _custom.Height)" />
+                       @onchange="async e => { if (float.TryParse(e.Value?.ToString(), out var v)) await UpdateCustom(v, _custom.Width, _custom.Height); }" />
             </div>
             <div>
                 <label class="text-xs text-gray-400 font-medium uppercase tracking-wide">Width (in)</label>
@@ -43,7 +43,7 @@
                        class="mt-1 w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2
                               text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                        value="@_custom.Width"
-                       @onchange="e => UpdateCustom(_custom.Length, float.Parse(e.Value!.ToString()!), _custom.Height)" />
+                       @onchange="async e => { if (float.TryParse(e.Value?.ToString(), out var v)) await UpdateCustom(_custom.Length, v, _custom.Height); }" />
             </div>
             <div>
                 <label class="text-xs text-gray-400 font-medium uppercase tracking-wide">Height (in)</label>
@@ -51,7 +51,7 @@
                        class="mt-1 w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2
                               text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                        value="@_custom.Height"
-                       @onchange="e => UpdateCustom(_custom.Length, _custom.Width, float.Parse(e.Value!.ToString()!))" />
+                       @onchange="async e => { if (float.TryParse(e.Value?.ToString(), out var v)) await UpdateCustom(_custom.Length, _custom.Width, v); }" />
             </div>
         </div>
     }
