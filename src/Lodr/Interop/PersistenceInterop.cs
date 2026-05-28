@@ -41,7 +41,7 @@ public class PersistenceInterop(IJSRuntime js) : IAsyncDisposable
         var m = await GetModuleAsync();
         await m.InvokeVoidAsync("saveItem", LastUsedStore,
             new { id = "pallet", length = pallet.Length, width = pallet.Width,
-                  height = pallet.Height, canRotate = pallet.CanRotate });
+                  height = pallet.Height, canRotate = pallet.CanRotate, quantity = pallet.Quantity });
     }
 
     public async Task<PalletSpec?> GetLastPalletAsync()
@@ -50,11 +50,14 @@ public class PersistenceInterop(IJSRuntime js) : IAsyncDisposable
         var item = await m.InvokeAsync<JsonElement?>("getItem", LastUsedStore, "pallet");
         if (item is null) return null;
         var v = item.Value;
+        int? qty = v.TryGetProperty("quantity", out var qEl) && qEl.ValueKind != JsonValueKind.Null
+            ? qEl.GetInt32() : null;
         return new PalletSpec(
             v.GetProperty("length").GetSingle(),
             v.GetProperty("width").GetSingle(),
             v.GetProperty("height").GetSingle(),
-            v.GetProperty("canRotate").GetBoolean());
+            v.GetProperty("canRotate").GetBoolean(),
+            qty);
     }
 
     public async Task SaveTrailerPresetAsync(string id, TrailerDimensions dims)

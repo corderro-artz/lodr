@@ -101,10 +101,11 @@
     private async Task ToggleRotation() =>
         await UpdateSpec(_length, _width, _height, !_canRotate, _quantity);
 
-    private void OnQuantityChanged(ChangeEventArgs e)
+    private async Task OnQuantityChanged(ChangeEventArgs e)
     {
         _quantity = int.TryParse(e.Value?.ToString(), out int q) ? q : null;
         CommitSpec();
+        await Persistence.SaveLastPalletAsync(new PalletSpec(_length, _width, _height, _canRotate, _quantity));
     }
 
     private void CommitSpec()
