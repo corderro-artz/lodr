@@ -1,0 +1,300 @@
+@inject WorkspaceState WS
+@inject CapacityService CapSvc
+@implements IDisposable
+@using System.Globalization
+
+<div class="relative rounded-lg border-2 bg-gray-900 transition-all cursor-pointer flex-shrink-0 flex flex-col @BorderClass @ShadowClass"
+     style="width: @(Px(CardWidthPx))px;"
+     tabindex="0"
+     @ref="_cardRef"
+     @onclick="Select"
+     @ondragover:preventDefault
+     @ondrop="OnDrop"
+     @onmouseenter="() => _cardRef.FocusAsync()"
+     @onkeydown="OnKeyDown">
+
+    @* ── Header ── *@
+    <div class="flex items-center justify-between px-3 py-2 border-b border-gray-700 flex-shrink-0"
+         @oncontextmenu="OnTrailerContextMenu"
+         @oncontextmenu:preventDefault
+         @oncontextmenu:stopPropagation>
+        <div class="flex items-center gap-2 min-w-0">
+            <span class="text-sm font-bold text-white flex-shrink-0">@Trailer.Id</span>
+            @if (Trailer.FriendlyName is not null)
+            {
+                <span class="text-xs text-gray-400 truncate">@Trailer.FriendlyName</span>
+            }
+            <span class="text-[10px] text-gray-600 flex-shrink-0">
+                @((int)Trailer.Dimensions.Length)" × @((int)Trailer.Dimensions.Width)"
+            </span>
+        </div>
+        <div class="flex items-center gap-2 flex-shrink-0">
+            @if (CurrentFullState == FullState.NearFull)
+            {
+                <span class="text-[10px] font-bold text-amber-400 uppercase tracking-wider">Near Full</span>
+            }
+            else if (CurrentFullState == FullState.Full)
+            {
+                <span class="text-[10px] font-bold text-red-400 uppercase tracking-wider">Full</span>
+            }
+            <span class="text-xs text-gray-500">@CapDisplay</span>
+            <button class="text-[10px] font-medium text-gray-500 hover:text-blue-400 border border-gray-700 hover:border-blue-500/50 rounded px-1.5 py-0.5 transition-colors"
+                    title="Layout audit"
+                    @onclick="() => _showAudit = true"
+                    @onclick:stopPropagation>
+                Audit
+            </button>
+        </div>
+    </div>
+
+    @* ── Top-down trailer visualization ── *@
+    <div class="relative bg-gray-800 mx-3 my-2 rounded flex-shrink-0 select-none"
+         style="height: @(Px(VizHeightPx))px;"
+         @ondragover:preventDefault
+         @oncontextmenu:preventDefault>
+
+        <div class="absolute inset-0 border border-gray-600/40 rounded pointer-events-none"></div>
+
+        @if (!Trailer.PlacedPallets.Any())
+        {
+            <div class="absolute inset-0 flex items-center justify-center pointer-events-none">
+                <p class="text-xs text-gray-600 select-none">Empty — drag a pallet here</p>
+            </div>
+        }
+        else
+        {
+            @foreach (var pallet in Trailer.PlacedPallets.OrderBy(p => p.Index))
+            {
+                var type = GetType(pallet.TypeId);
+                if (type is null) continue;
+                float palletL  = pallet.Rotated ? type.Width  : type.Length;
+                float palletW  = pallet.Rotated ? type.Length : type.Width;
+                float leftPct  = pallet.X / Trailer.Dimensions.Length * 100f;
+                float topPct   = pallet.Y / Trailer.Dimensions.Width  * 100f;
+                float widthPct = palletL  / Trailer.Dimensions.Length * 100f;
+                float hgtPct   = palletW  / Trailer.Dimensions.Width  * 100f;
+                var capturedPallet = pallet;
+
+                <div class="absolute p-px cursor-context-menu"
+                     style="left:@(F(leftPct))%;top:@(F(topPct))%;width:@(F(widthPct))%;height:@(F(hgtPct))%;"
+                     @onclick:stopPropagation
+                     @oncontextmenu="(e) => OnPalletContextMenu(capturedPallet, e)"
+                     @oncontextmenu:preventDefault
+                     @oncontextmenu:stopPropagation>
+                    <PalletCell Pallet="pallet" PalletType="type" />
+                </div>
+            }
+        }
+    </div>
+
+    @* ── Utilization bar (area-based) ── *@
+    <div class="h-1 mx-3 mb-2 rounded-full bg-gray-700 overflow-hidden flex-shrink-0">
+        <div class="h-full rounded-full transition-all @BarColor" style="width: @BarWidth"></div>
+    </div>
+</div>
+
+@* ── Trailer context menu (right-click header) ── *@
+@if (_showTrailerMenu)
+{
+    <div class="fixed inset-0 z-40" @onclick="() => _showTrailerMenu = false"></div>
+    <div class="fixed z-50 bg-gray-800 border border-gray-700 rounded shadow-xl py-1 text-xs"
+         style="left: @(_menuX)px; top: @(_menuY)px; min-width: 160px;">
+        <button class="w-full text-left px-3 py-1.5 hover:bg-gray-700"
+                @onclick="OpenInTab">Open in tab</button>
+        <button class="w-full text-left px-3 py-1.5 hover:bg-gray-700 text-red-400"
+                @onclick="RemoveTrailer">Remove trailer</button>
+    </div>
+}
+
+@* ── Pallet context menu (right-click pallet in viz) ── *@
+@if (_showPalletMenu && _menuPallet is not null)
+{
+    <div class="fixed inset-0 z-40" @onclick="() => _showPalletMenu = false"></div>
+    <div class="fixed z-50 bg-gray-800 border border-gray-700 rounded shadow-xl py-1 text-xs"
+         style="left: @(_menuX)px; top: @(_menuY)px; min-width: 160px;">
+        <button class="w-full text-left px-3 py-1.5 hover:bg-gray-700 text-red-400"
+                @onclick="PalletRemove">Remove pallet</button>
+        @if (OtherTrailers.Any())
+        {
+            <div class="px-3 py-1 text-gray-500 border-t border-gray-700">Move to…</div>
+            @foreach (var t in OtherTrailers)
+            {
+                var tid = t.Id;
+                <button class="w-full text-left px-4 py-1 hover:bg-gray-700"
+                        @onclick="() => PalletMoveTo(tid)">
+                    @t.Id@(t.FriendlyName is not null ? $" · {t.FriendlyName}" : "")
+                </button>
+            }
+        }
+        @if (SwapTypes.Any())
+        {
+            <div class="px-3 py-1 text-gray-500 border-t border-gray-700">Swap type…</div>
+            @foreach (var swapType in SwapTypes)
+            {
+                var st = swapType;
+                <button class="w-full text-left px-4 py-1 hover:bg-gray-700"
+                        @onclick="() => PalletSwapType(st.Id)">
+                    <span class="inline-block w-2 h-2 rounded-full mr-1" style="background:@st.Color"></span>
+                    @st.Name
+                </button>
+            }
+        }
+    </div>
+}
+
+@* ── Audit panel ── *@
+@if (_showAudit && WS.Current is not null)
+{
+    <TrailerAuditPanel Trailer="Trailer"
+                       PalletTypes="WS.Current.PalletTypes"
+                       OnClose="() => _showAudit = false" />
+}
+
+@code {
+    [Parameter, EditorRequired] public TrailerInstance Trailer { get; set; } = null!;
+    [Parameter] public IReadOnlyList<TrailerInstance> OtherTrailers { get; set; } = [];
+    [Parameter] public IReadOnlyList<PalletType> OtherTypes { get; set; } = [];
+
+    private ElementReference _cardRef;
+    private bool _showTrailerMenu;
+    private bool _showPalletMenu;
+    private bool _showAudit;
+    private double _menuX, _menuY;
+    private PlacedPallet? _menuPallet;
+
+    protected override void OnInitialized() => WS.OnChange += StateHasChanged;
+    public void Dispose()               => WS.OnChange -= StateHasChanged;
+
+    private IReadOnlyList<PalletType> SwapTypes =>
+        _menuPallet is null || WS.Current is null ? []
+        : WS.Current.PalletTypes.Where(t => t.Id != _menuPallet.TypeId).ToList();
+
+    // ── Visualization geometry ──────────────────────────────────────────────
+    private const float VizHeightPx = 160f;
+    private float Scale       => Trailer.Dimensions.Width > 0 ? VizHeightPx / Trailer.Dimensions.Width : 1.6f;
+    private float VizWidthPx  => Trailer.Dimensions.Length * Scale;
+    private float CardWidthPx => Math.Max(320f, VizWidthPx + 24f);
+
+    private static string F(float v)  => v.ToString("F2", CultureInfo.InvariantCulture);
+    private static string Px(float v) => v.ToString("F0", CultureInfo.InvariantCulture);
+
+    // ── Capacity display ────────────────────────────────────────────────────
+    private string CapDisplay
+    {
+        get
+        {
+            if (WS.Current is null) return "0";
+            var types = WS.Current.PalletTypes;
+            int placed = Trailer.PlacedPallets.Count;
+            if (types.Count == 0) return placed.ToString();
+            var placedTypeIds = Trailer.PlacedPallets.Select(p => p.TypeId).Distinct().ToList();
+            if (placedTypeIds.Count <= 1)
+            {
+                var singleType = placedTypeIds.Count == 1
+                    ? types.FirstOrDefault(t => t.Id == placedTypeIds[0])
+                    : types.Count == 1 ? types[0] : null;
+                if (singleType is not null)
+                {
+                    int max = CapSvc.GetCapacity(Trailer.Dimensions, singleType);
+                    return $"{placed} / {max}";
+                }
+                return placed.ToString();
+            }
+            return $"{placed} · mixed load";
+        }
+    }
+
+    // ── Full state ──────────────────────────────────────────────────────────
+    private FullState CurrentFullState =>
+        WS.Current is null ? FullState.Normal
+        : CapSvc.GetFullState(Trailer, WS.Current.PalletTypes);
+
+    // ── Progress bar ────────────────────────────────────────────────────────
+    private float AreaFraction =>
+        WS.Current is null ? 0f
+        : CapSvc.GetAreaFraction(Trailer, WS.Current.PalletTypes);
+
+    private string BarColor => CurrentFullState switch
+    {
+        FullState.Full     => "bg-red-500",
+        FullState.NearFull => "bg-amber-500",
+        _                  => "bg-blue-500"
+    };
+
+    private string BarWidth => CurrentFullState == FullState.Full
+        ? "100%"
+        : $"{Math.Min(AreaFraction * 100f, 100f):F0}%";
+
+    private string BorderClass => CurrentFullState switch
+    {
+        FullState.Full     => "border-red-600",
+        FullState.NearFull => "border-amber-500",
+        _ => WS.SelectedTrailerId == Trailer.Id ? "border-blue-500" : "border-gray-700"
+    };
+
+    private string ShadowClass =>
+        WS.SelectedTrailerId == Trailer.Id ? "shadow-lg shadow-blue-900/40" : "";
+
+    // ── Helpers ─────────────────────────────────────────────────────────────
+    private PalletType? GetType(string typeId) =>
+        WS.Current?.PalletTypes.FirstOrDefault(t => t.Id == typeId);
+
+    private void OnKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Delete") WS.RemoveTrailer(Trailer.Id);
+    }
+
+    private void Select() => WS.SelectTrailer(Trailer.Id);
+
+    private void OnDrop()
+    {
+        var typeId = PalettePanel.DraggedTypeId;
+        PalettePanel.ClearDrag();
+        if (typeId is null) return;
+        WS.TryAddPallet(Trailer.Id, typeId);
+    }
+
+    // ── Trailer context menu ─────────────────────────────────────────────────
+    private void OnTrailerContextMenu(MouseEventArgs e)
+    {
+        _menuX = e.ClientX; _menuY = e.ClientY;
+        _showTrailerMenu = true;
+        _showPalletMenu = false;
+    }
+
+    private void OpenInTab()   { _showTrailerMenu = false; WS.OpenTrailerTab(Trailer.Id); }
+    private void RemoveTrailer() { _showTrailerMenu = false; WS.RemoveTrailer(Trailer.Id); }
+
+    // ── Pallet context menu ──────────────────────────────────────────────────
+    private void OnPalletContextMenu(PlacedPallet pallet, MouseEventArgs e)
+    {
+        _menuPallet = pallet;
+        _menuX = e.ClientX; _menuY = e.ClientY;
+        _showPalletMenu = true;
+        _showTrailerMenu = false;
+    }
+
+    private void PalletRemove()
+    {
+        if (_menuPallet is null) return;
+        _showPalletMenu = false;
+        WS.RemovePallet(Trailer.Id, _menuPallet.Index);
+        _menuPallet = null;
+    }
+
+    private void PalletMoveTo(string toId)
+    {
+        if (_menuPallet is null) return;
+        _showPalletMenu = false;
+        WS.TryMovePallet(Trailer.Id, _menuPallet.Index, toId);
+        _menuPallet = null;
+    }
+
+    private void PalletSwapType(string typeId)
+    {
+        if (_menuPallet is null) return;
+        _showPalletMenu = false;
+        WS.SwapPalletType(Trailer.Id, _menuPallet.Index, typeId);
+        _menuPallet = null;
+    }
+}

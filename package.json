@@ -1,0 +1,35 @@
+{
+  "name": "lodr",
+  "version": "1.0.0",
+  "description": "",
+  "directories": {
+    "doc": "docs",
+    "test": "tests"
+  },
+  "scripts": {
+    "build:pixi": "esbuild src/Lodr/wwwroot/js/pixi-interop.src.js --bundle --format=esm --outfile=src/Lodr/wwwroot/js/pixi-interop.js --minify",
+    "build:css":  "npx @tailwindcss/cli -i src/Lodr/wwwroot/css/app.css -o src/Lodr/wwwroot/css/app.min.css",
+    "build":      "npm run build:pixi && npm run build:css",
+    "build:css:watch": "npx @tailwindcss/cli -i src/Lodr/wwwroot/css/app.css -o src/Lodr/wwwroot/css/app.min.css --watch"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/corderro-artz/lodr.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "module",
+  "bugs": {
+    "url": "https://github.com/corderro-artz/lodr/issues"
+  },
+  "homepage": "https://github.com/corderro-artz/lodr#readme",
+  "dependencies": {
+    "pixi.js": "^8.16.0"
+  },
+  "devDependencies": {
+    "@tailwindcss/cli": "^4.3.0",
+    "esbuild": "^0.28.0",
+    "tailwindcss": "^4.3.0"
+  }
+}

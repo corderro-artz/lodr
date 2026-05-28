@@ -1,0 +1,128 @@
+@inject WorkspaceState WS
+
+<div class="p-3 flex flex-col gap-2">
+    <div class="flex items-center justify-between mb-1">
+        <span class="text-xs text-gray-500 font-semibold uppercase tracking-wider">Pallet Types</span>
+        <button class="text-xs text-blue-400 hover:text-blue-300 transition-colors"
+                @onclick="ShowAddType">
+            + Add
+        </button>
+    </div>
+
+    @if (WS.Current is null)
+    {
+        <p class="text-xs text-gray-600 text-center py-4">Open a workspace to manage pallet types.</p>
+    }
+    else if (!WS.Current.PalletTypes.Any())
+    {
+        <p class="text-xs text-gray-600 text-center py-4">No pallet types yet. Click + Add to define one.</p>
+    }
+    else
+    {
+        @foreach (var type in WS.Current.PalletTypes)
+        {
+            <div class="rounded border border-gray-700 p-2 cursor-grab active:cursor-grabbing"
+                 draggable="true"
+                 @ondragstart="() => OnDragStart(type.Id)"
+                 style="border-left: 3px solid @type.Color">
+                <div class="flex items-center justify-between">
+                    <span class="text-sm font-medium">@type.Name</span>
+                    <button class="w-6 h-6 rounded bg-blue-700 hover:bg-blue-500 text-white text-xs font-bold transition-colors"
+                            title="Add to selected trailer"
+                            @onclick="() => AddToSelected(type.Id)"
+                            @onclick:stopPropagation>
+                        +
+                    </button>
+                </div>
+                <p class="text-xs text-gray-500 mt-0.5">@type.Length" × @type.Width" × @type.Height"</p>
+            </div>
+        }
+    }
+
+    @if (_showAddType)
+    {
+        <div class="mt-2 p-2 rounded border border-gray-600 bg-gray-800 flex flex-col gap-2">
+            <select class="bg-gray-700 rounded px-2 py-1 text-xs outline-none focus:ring-1 ring-blue-500"
+                    @onchange="OnPresetChange">
+                <option value="">— Preset sizes —</option>
+                <option value="gma">GMA Standard (48×40)</option>
+                <option value="grocery">Grocery (42×42)</option>
+                <option value="square">Square (48×48)</option>
+                <option value="custom">Custom</option>
+            </select>
+            <input class="bg-gray-700 rounded px-2 py-1 text-xs outline-none focus:ring-1 ring-blue-500"
+                   placeholder="Name (e.g. GMA)"
+                   @bind="_newName" />
+            <div class="flex gap-1">
+                <input class="bg-gray-700 rounded px-2 py-1 text-xs outline-none w-16" placeholder="L&quot;" @bind="_newL" type="number" />
+                <input class="bg-gray-700 rounded px-2 py-1 text-xs outline-none w-16" placeholder="W&quot;" @bind="_newW" type="number" />
+                <input class="bg-gray-700 rounded px-2 py-1 text-xs outline-none w-16" placeholder="H&quot;" @bind="_newH" type="number" />
+            </div>
+            <label class="flex items-center gap-2 text-xs text-gray-400">
+                <input type="checkbox" @bind="_newCanRotate" /> Can rotate
+            </label>
+            <div class="flex gap-2">
+                <button class="flex-1 py-1 text-xs bg-blue-600 hover:bg-blue-500 rounded transition-colors" @onclick="CommitAddType">Add</button>
+                <button class="flex-1 py-1 text-xs border border-gray-600 hover:border-gray-400 rounded transition-colors" @onclick="() => _showAddType = false">Cancel</button>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    private static readonly string[] ColorPool = ["#22c55e","#3b82f6","#f97316","#a855f7","#ec4899","#14b8a6"];
+    private bool _showAddType;
+    private string _newName = string.Empty;
+    private float _newL = 48f, _newW = 40f, _newH = 48f;
+    private bool _newCanRotate = false;
+
+    private static readonly (string Name, float L, float W)[] Presets =
+    [
+        ("gma", 48f, 40f),
+        ("grocery", 42f, 42f),
+        ("square", 48f, 48f),
+    ];
+
+    private void ShowAddType()
+    {
+        _showAddType = true;
+        _newName = string.Empty;
+        _newL = 48f; _newW = 40f; _newH = 48f;
+    }
+
+    private void OnPresetChange(ChangeEventArgs e)
+    {
+        var val = e.Value?.ToString();
+        var preset = Presets.FirstOrDefault(p => p.Name == val);
+        if (preset != default)
+        {
+            _newName = val switch
+            {
+                "gma" => "GMA Standard",
+                "grocery" => "Grocery",
+                "square" => "Square",
+                _ => _newName
+            };
+            _newL = preset.L;
+            _newW = preset.W;
+        }
+    }
+
+    private void CommitAddType()
+    {
+        if (string.IsNullOrWhiteSpace(_newName) || WS.Current is null) return;
+        int idx = WS.Current.PalletTypes.Count % ColorPool.Length;
+        var type = new PalletType(
+            Guid.NewGuid().ToString(), _newName.Trim(),
+            _newL, _newW, _newH, _newCanRotate, ColorPool[idx]);
+        WS.AddPalletType(type);
+        _showAddType = false;
+    }
+
+    private void AddToSelected(string typeId) => WS.TryAddPallet(WS.SelectedTrailerId, typeId);
+
+    private void OnDragStart(string typeId) => DraggedTypeId = typeId;
+
+    public static string? DraggedTypeId { get; private set; }
+    public static void ClearDrag() => DraggedTypeId = null;
+}

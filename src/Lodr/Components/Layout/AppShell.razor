@@ -1,0 +1,88 @@
+@inherits LayoutComponentBase
+@inject WorkspaceState WS
+@inject AppLogService LogService
+@inject WorkspacePersistenceInterop Persistence
+@implements IDisposable
+
+<div class="h-screen w-screen overflow-hidden flex flex-col bg-gray-950 text-white select-none">
+    <AppHeader OnAddTrailer="ShowAddTrailerDialog" OnLogOpen="() => _showLog = true" />
+
+    <div class="flex-1 flex overflow-hidden">
+        <Sidebar />
+
+        <main class="flex-1 flex overflow-hidden">
+            @if (WS.Current is null)
+            {
+                <div class="flex-1 flex items-center justify-center text-gray-600">
+                    <div class="text-center">
+                        <p class="text-2xl font-bold mb-2">No workspace open</p>
+                        <p class="text-sm">Open the Workspaces panel to create or load a workspace.</p>
+                    </div>
+                </div>
+            }
+            else
+            {
+                <TrailerCanvas />
+                <TrailerInspector />
+            }
+        </main>
+    </div>
+
+    <StatusBar />
+</div>
+
+@if (_showAddTrailer)
+{
+    <AddTrailerDialog OnConfirm="OnAddTrailerConfirmed" OnCancel="() => _showAddTrailer = false" />
+}
+
+@if (_showLog)
+{
+    <LogPanel OnClose="() => _showLog = false" />
+}
+
+@code {
+    private bool _showAddTrailer;
+    private bool _showLog;
+    private System.Threading.Timer? _autosaveTimer;
+
+    protected override async Task OnInitializedAsync()
+    {
+        WS.OnChange += StateHasChanged;
+        LogService.OnChange += StateHasChanged;
+        _autosaveTimer = new System.Threading.Timer(_ => InvokeAsync(AutoSave), null,
+            TimeSpan.FromSeconds(60), TimeSpan.FromSeconds(60));
+
+        // Restore last workspace
+        var lastId = await Persistence.GetLastWorkspaceIdAsync();
+        if (lastId is not null)
+        {
+            var ws = await Persistence.GetWorkspaceAsync(lastId);
+            if (ws is not null) WS.LoadWorkspace(ws);
+        }
+    }
+
+    private void ShowAddTrailerDialog() => _showAddTrailer = true;
+
+    private void OnAddTrailerConfirmed((TrailerDimensions dims, string? name) args)
+    {
+        _showAddTrailer = false;
+        WS.AddTrailer(args.dims, args.name);
+    }
+
+    private async Task AutoSave()
+    {
+        if (WS.Current is not null && WS.IsDirty)
+        {
+            await Persistence.SaveWorkspaceAsync(WS.Current);
+            await Persistence.SaveLastWorkspaceIdAsync(WS.Current.Id);
+        }
+    }
+
+    public void Dispose()
+    {
+        WS.OnChange -= StateHasChanged;
+        LogService.OnChange -= StateHasChanged;
+        _autosaveTimer?.Dispose();
+    }
+}

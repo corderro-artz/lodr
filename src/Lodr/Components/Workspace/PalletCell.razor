@@ -1,0 +1,14 @@
+<div class="flex flex-col items-center justify-center rounded text-white text-center select-none"
+     style="background-color: @PalletType.Color; border: 1px solid @(PalletType.Color)cc; width: 100%; height: 100%; box-sizing: border-box; overflow: hidden;">
+    <span class="font-bold text-xs leading-none">@Pallet.Index</span>
+    <span class="text-[9px] leading-none text-white/70 mt-0.5">@DimLabel</span>
+</div>
+
+@code {
+    [Parameter, EditorRequired] public PlacedPallet Pallet { get; set; } = null!;
+    [Parameter, EditorRequired] public PalletType PalletType { get; set; } = null!;
+
+    private string DimLabel => Pallet.Rotated
+        ? $"{PalletType.Width}×{PalletType.Length}"
+        : $"{PalletType.Length}×{PalletType.Width}";
+}

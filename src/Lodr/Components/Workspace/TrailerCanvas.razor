@@ -1,0 +1,62 @@
+@inject WorkspaceState WS
+@implements IDisposable
+
+<div class="flex-1 flex flex-col overflow-hidden">
+    @* Tab strip for pop-out trailers *@
+    @if (WS.OpenTabIds.Any())
+    {
+        <div class="flex-none flex items-center gap-1 px-3 pt-2 border-b border-gray-800 bg-gray-950">
+            <button class="px-3 py-1 text-xs rounded-t @(_focusedTabId is null ? "bg-gray-800 text-white" : "text-gray-500 hover:text-gray-300")"
+                    @onclick="() => _focusedTabId = null">
+                All Trailers
+            </button>
+            @foreach (var tabId in WS.OpenTabIds)
+            {
+                var trailer = WS.Current?.Trailers.FirstOrDefault(t => t.Id == tabId);
+                if (trailer is null) continue;
+                <div class="flex items-center gap-1">
+                    <button class="px-3 py-1 text-xs rounded-t @(_focusedTabId == tabId ? "bg-gray-800 text-white" : "text-gray-500 hover:text-gray-300")"
+                            @onclick="() => _focusedTabId = tabId">
+                        @tabId @(trailer.FriendlyName is not null ? $"· {trailer.FriendlyName}" : "")
+                    </button>
+                    <button class="text-gray-600 hover:text-gray-300 text-xs pr-1" @onclick="() => WS.CloseTrailerTab(tabId)">×</button>
+                </div>
+            }
+        </div>
+    }
+
+    @* Canvas body *@
+    <div class="flex-1 overflow-auto p-4">
+        @if (WS.Current is null || !WS.Current.Trailers.Any())
+        {
+            <div class="h-full flex items-center justify-center text-gray-600">
+                <div class="text-center">
+                    <p class="text-lg font-semibold mb-1">No trailers yet</p>
+                    <p class="text-sm">Click "+ Trailer" in the header to add one.</p>
+                </div>
+            </div>
+        }
+        else
+        {
+            var trailers = _focusedTabId is not null
+                ? WS.Current.Trailers.Where(t => t.Id == _focusedTabId).ToList()
+                : WS.Current.Trailers.ToList();
+
+            <div class="flex flex-col gap-6 items-start">
+                @foreach (var trailer in trailers)
+                {
+                    <TrailerCard Trailer="trailer"
+                                 OtherTrailers="WS.Current.Trailers.Where(t => t.Id != trailer.Id).ToList()"
+                                 OtherTypes="WS.Current.PalletTypes" />
+                }
+            </div>
+        }
+    </div>
+</div>
+
+@code {
+    private string? _focusedTabId;
+
+    protected override void OnInitialized() => WS.OnChange += StateHasChanged;
+    public void Dispose() => WS.OnChange -= StateHasChanged;
+}

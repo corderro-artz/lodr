@@ -1,0 +1,35 @@
+<div class="flex flex-col gap-1">
+    <label class="text-xs text-gray-400 font-medium uppercase tracking-wide">
+        @Label
+        @if (!string.IsNullOrEmpty(Unit))
+        {
+            <span class="ml-1 text-gray-600">(@Unit)</span>
+        }
+    </label>
+    <input type="number"
+           class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2
+                  text-white text-sm placeholder-gray-600
+                  focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent
+                  [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none
+                  [&::-webkit-inner-spin-button]:appearance-none"
+           min="0"
+           step="@Step"
+           value="@Value"
+           @onchange="OnValueChanged"
+           placeholder="@Placeholder" />
+</div>
+
+@code {
+    [Parameter, EditorRequired] public string Label { get; set; } = "";
+    [Parameter] public string Unit { get; set; } = "in";
+    [Parameter] public float Value { get; set; }
+    [Parameter] public EventCallback<float> ValueChanged { get; set; }
+    [Parameter] public string Placeholder { get; set; } = "0";
+    [Parameter] public string Step { get; set; } = "0.5";
+
+    private async Task OnValueChanged(ChangeEventArgs e)
+    {
+        if (float.TryParse(e.Value?.ToString(), out float parsed))
+            await ValueChanged.InvokeAsync(parsed);
+    }
+}

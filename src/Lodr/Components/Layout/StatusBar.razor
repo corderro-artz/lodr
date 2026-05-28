@@ -1,0 +1,27 @@
+@inject WorkspaceState WS
+@implements IDisposable
+
+<footer class="flex-none h-8 px-4 border-t border-gray-800 flex items-center gap-4 text-xs text-gray-500 bg-gray-950">
+    @if (WS.Current is not null)
+    {
+        <span>@WS.Current.Trailers.Count trailer@(WS.Current.Trailers.Count == 1 ? "" : "s")</span>
+        <span>·</span>
+        <span>@TotalPallets pallet@(TotalPallets == 1 ? "" : "s")</span>
+        <span>·</span>
+        <span class="@(WS.IsDirty ? "text-amber-500" : "text-green-600")">
+            @(WS.IsDirty ? "Unsaved changes" : "Saved")
+        </span>
+    }
+    else
+    {
+        <span>No workspace open</span>
+    }
+</footer>
+
+@code {
+    private int TotalPallets =>
+        WS.Current?.Trailers.Sum(t => t.PlacedPallets.Count) ?? 0;
+
+    protected override void OnInitialized() => WS.OnChange += StateHasChanged;
+    public void Dispose() => WS.OnChange -= StateHasChanged;
+}

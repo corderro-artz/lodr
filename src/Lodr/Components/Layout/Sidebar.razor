@@ -1,0 +1,30 @@
+@inject WorkspaceState WS
+
+<aside class="w-64 flex-shrink-0 flex flex-col border-r border-gray-800 bg-gray-900">
+    <div class="flex border-b border-gray-800">
+        <button class="flex-1 py-2 text-xs font-semibold uppercase tracking-wider transition-colors @(_activeTab == Tab.Workspaces ? "text-white border-b-2 border-blue-500" : "text-gray-500 hover:text-gray-300")"
+                @onclick="() => _activeTab = Tab.Workspaces">
+            Workspaces
+        </button>
+        <button class="flex-1 py-2 text-xs font-semibold uppercase tracking-wider transition-colors @(_activeTab == Tab.Palette ? "text-white border-b-2 border-blue-500" : "text-gray-500 hover:text-gray-300")"
+                @onclick="() => _activeTab = Tab.Palette">
+            Palette
+        </button>
+    </div>
+
+    <div class="flex-1 overflow-y-auto">
+        @if (_activeTab == Tab.Palette)
+        {
+            <PalettePanel />
+        }
+        else
+        {
+            <WorkspacePanel />
+        }
+    </div>
+</aside>
+
+@code {
+    private enum Tab { Palette, Workspaces }
+    private Tab _activeTab = Tab.Workspaces;
+}

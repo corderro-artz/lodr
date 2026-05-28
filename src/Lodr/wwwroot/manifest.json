@@ -1,0 +1,13 @@
+{
+  "name": "LODR — Pallet Layout Optimizer",
+  "short_name": "LODR",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#030712",
+  "theme_color": "#2563eb",
+  "description": "Calculate and visualize pallet layouts inside truck trailers. Works fully offline.",
+  "icons": [
+    { "src": "icons/icon-192.png", "type": "image/png", "sizes": "192x192", "purpose": "any" },
+    { "src": "icons/icon-512.png", "type": "image/png", "sizes": "512x512", "purpose": "any" }
+  ]
+}
