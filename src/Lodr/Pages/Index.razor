@@ -1,0 +1,23 @@
+@page "/"
+@inject AppState AppState
+@implements IDisposable
+
+<PageTitle>LODR — Pallet Layout Optimizer</PageTitle>
+
+@switch (AppState.CurrentStep)
+{
+    case 0:
+        <TrailerStep />
+        break;
+    case 1:
+        <PalletStep />
+        break;
+    case 2:
+        <ResultStep />
+        break;
+}
+
+@code {
+    protected override void OnInitialized() => AppState.OnChange += StateHasChanged;
+    public void Dispose()                   => AppState.OnChange -= StateHasChanged;
+}
