@@ -79,7 +79,7 @@
 
     private void OnAppStateChanged()
     {
-        InvokeAsync(async () =>
+        _ = InvokeAsync(async () =>
         {
             StateHasChanged();
             if (_canvasReady && AppState.Result is not null && AppState.Result != _lastRendered)
