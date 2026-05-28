@@ -2,11 +2,11 @@ const DB_NAME = 'lodr-db';
 const DB_VERSION = 1;
 const STORES = ['trailer-presets', 'pallet-presets', 'last-used'];
 
-let _db = null;
+let _dbPromise = null;
 
-async function openDB() {
-    if (_db) return _db;
-    return new Promise((resolve, reject) => {
+function openDB() {
+    if (_dbPromise) return _dbPromise;
+    _dbPromise = new Promise((resolve, reject) => {
         const req = indexedDB.open(DB_NAME, DB_VERSION);
         req.onupgradeneeded = e => {
             const db = e.target.result;
@@ -15,9 +15,10 @@ async function openDB() {
                     db.createObjectStore(name, { keyPath: 'id' });
             });
         };
-        req.onsuccess = e => { _db = e.target.result; resolve(_db); };
-        req.onerror = e => reject(e.target.error);
+        req.onsuccess = e => resolve(e.target.result);
+        req.onerror = e => { _dbPromise = null; reject(e.target.error); };
     });
+    return _dbPromise;
 }
 
 function tx(storeName, mode, fn) {

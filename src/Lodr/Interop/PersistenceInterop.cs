@@ -68,6 +68,7 @@ public class PersistenceInterop(IJSRuntime js) : IAsyncDisposable
     {
         var m = await GetModuleAsync();
         var items = await m.InvokeAsync<JsonElement>("getAllItems", TrailerPresetsStore);
+        if (items.ValueKind == JsonValueKind.Null) return [];
         var result = new List<(string, TrailerDimensions)>();
         foreach (var item in items.EnumerateArray())
         {
@@ -94,6 +95,7 @@ public class PersistenceInterop(IJSRuntime js) : IAsyncDisposable
     {
         var m = await GetModuleAsync();
         var items = await m.InvokeAsync<JsonElement>("getAllItems", PalletPresetsStore);
+        if (items.ValueKind == JsonValueKind.Null) return [];
         var result = new List<(string, PalletSpec)>();
         foreach (var item in items.EnumerateArray())
         {
