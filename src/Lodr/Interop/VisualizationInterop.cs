@@ -19,18 +19,18 @@ public class VisualizationInterop(IJSRuntime js) : IAsyncDisposable
         await m.InvokeVoidAsync("init", canvasId, width, height);
     }
 
-    public async Task RenderAsync(PlacementResult result)
+    public async Task RenderAsync(TrailerInstance trailer, PalletType palletType)
     {
         var m = await GetModuleAsync();
-        var positions = result.Positions
+        var positions = trailer.PlacedPallets
             .Select(p => new { x = p.X, y = p.Y, rotated = p.Rotated, index = p.Index })
             .ToArray();
         await m.InvokeVoidAsync("render",
-            result.Trailer.Length,
-            result.Trailer.Width,
+            trailer.Dimensions.Length,
+            trailer.Dimensions.Width,
             positions,
-            result.Pallet.Length,
-            result.Pallet.Width);
+            palletType.Length,
+            palletType.Width);
     }
 
     public async Task ClearAsync()

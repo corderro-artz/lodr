@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>LODR — Pallet Interaction</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #030712; color: #f9fafb; font-family: system-ui, sans-serif; padding: 24px 24px 80px; }
+  h1 { font-size: 18px; font-weight: 700; margin-bottom: 4px; }
+  .subtitle { color: #6b7280; font-size: 13px; margin-bottom: 24px; }
+
+  .cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+  .card {
+    background: #111827; border: 2px solid #1f2937; border-radius: 12px;
+    overflow: hidden; cursor: pointer; transition: border-color .15s, transform .15s;
+  }
+  .card:hover { border-color: #3b82f6; transform: translateY(-2px); }
+  .card.selected { border-color: #2563eb; box-shadow: 0 0 0 3px rgba(37,99,235,.25); }
+
+  .card-label {
+    background: #1f2937; padding: 10px 14px;
+    border-bottom: 1px solid #374151;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .letter {
+    width: 24px; height: 24px; border-radius: 6px;
+    background: #2563eb; color: #fff;
+    font-size: 12px; font-weight: 800;
+    display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  }
+  .card-title { font-size: 13px; font-weight: 700; }
+  .card-desc { font-size: 11px; color: #9ca3af; margin-top: 2px; }
+
+  .mockup-wrap { padding: 12px; }
+  .app-mock {
+    border-radius: 8px; overflow: hidden;
+    border: 1px solid #374151; background: #0f172a;
+    height: 280px; display: flex; flex-direction: column; font-size: 10px;
+  }
+
+  /* header */
+  .m-header {
+    background: #1e293b; border-bottom: 1px solid #334155;
+    padding: 5px 10px; display: flex; align-items: center; gap: 6px; flex-shrink: 0;
+  }
+  .m-logo { width:16px;height:16px;background:#2563eb;border-radius:3px;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800; }
+  .m-brand { font-size:11px;font-weight:700; }
+  .m-spacer { flex:1; }
+  .m-tag { background:#374151;border-radius:3px;padding:1px 5px;font-size:8px;color:#9ca3af; }
+
+  /* body */
+  .m-body { flex:1;display:flex;min-height:0; }
+
+  /* left sidebar */
+  .m-sidebar { background:#111827;border-right:1px solid#1f2937;padding:8px;display:flex;flex-direction:column;gap:5px;flex-shrink:0;width:80px; }
+  .m-sidebar-label { font-size:8px;color:#6b7280;text-transform:uppercase;letter-spacing:.05em;margin-bottom:2px; }
+
+  /* pallet type cards in sidebar */
+  .pt-card {
+    background:#1f2937;border:1px solid #374151;border-radius:4px;padding:5px 6px;
+    display:flex;flex-direction:column;gap:2px;position:relative;
+  }
+  .pt-card.draggable { cursor:grab; border-style: dashed; }
+  .pt-card.draggable:active { cursor:grabbing; }
+  .pt-top { display:flex;align-items:center;gap:4px; }
+  .pt-swatch { width:8px;height:8px;border-radius:2px;flex-shrink:0; }
+  .pt-name { font-size:8px;color:#f9fafb;font-weight:600; }
+  .pt-dims { font-size:7px;color:#6b7280; }
+  .pt-count { font-size:7px;color:#9ca3af; }
+  .pt-btn {
+    background:#1d4ed8;color:#fff;border-radius:3px;
+    font-size:7px;font-weight:700;padding:2px 0;text-align:center;margin-top:2px;
+  }
+  .pt-add-icon {
+    position:absolute;top:4px;right:4px;
+    width:12px;height:12px;background:#1d4ed8;border-radius:3px;
+    display:flex;align-items:center;justify-content:center;
+    font-size:10px;color:#fff;font-weight:700;line-height:1;
+  }
+  .drag-hint { font-size:7px;color:#4b5563;text-align:center;margin-top:2px; }
+
+  /* canvas */
+  .m-canvas { flex:1;background:#0a0f1a;position:relative; }
+  .m-canvas-label { font-size:8px;color:#374151;position:absolute;top:8px;left:8px; }
+
+  /* trailer on canvas */
+  .m-trailer-wrap { position:absolute; }
+  .m-trailer-name { font-size:8px;color:#60a5fa;font-weight:600;margin-bottom:3px; }
+  .m-trailer-box {
+    border:1.5px solid #1e3a5f;background:#0d1b2e;border-radius:4px;
+    padding:4px;display:flex;flex-wrap:wrap;gap:2px;align-content:flex-start;
+  }
+  .m-pallet { width:14px;height:11px;border-radius:2px;display:flex;align-items:center;justify-content:center;font-size:5px;font-weight:700; }
+  .m-pallet.green { background:#22c55e;color:#052e16; }
+  .m-pallet.blue  { background:#3b82f6;color:#0a1628; }
+  .m-pallet.empty { background:#1f2937;opacity:.3; }
+  .m-pallet.drop-target { background:#1e3a5f;border:1px dashed #3b82f6;opacity:.7; }
+
+  /* drop zone overlay on trailer */
+  .drop-overlay {
+    position:absolute;inset:0;border:2px dashed #3b82f6;border-radius:4px;
+    background:rgba(37,99,235,.08);display:flex;align-items:center;justify-content:center;
+    font-size:8px;color:#60a5fa;font-weight:600;
+  }
+
+  /* tooltip / popup */
+  .ctx-menu {
+    position:absolute;background:#1f2937;border:1px solid #374151;border-radius:5px;
+    padding:4px;box-shadow:0 4px 16px rgba(0,0,0,.5);min-width:80px;z-index:10;
+  }
+  .ctx-item { padding:4px 8px;font-size:8px;color:#d1d5db;border-radius:3px; }
+  .ctx-item.primary { color:#60a5fa;font-weight:600; }
+  .ctx-item:not(:last-child) { border-bottom:1px solid #374151; }
+
+  /* right inspector */
+  .m-inspector { background:#111827;border-left:1px solid#1f2937;padding:8px;width:75px;flex-shrink:0;display:flex;flex-direction:column;gap:4px; }
+  .ins-label { font-size:8px;color:#6b7280;text-transform:uppercase;letter-spacing:.04em; }
+  .ins-big { font-size:18px;font-weight:800;color:#22c55e;line-height:1; }
+  .ins-sub { font-size:7px;color:#6b7280; }
+  .ins-row { display:flex;justify-content:space-between;align-items:center; }
+  .ins-k { font-size:7px;color:#6b7280; }
+  .ins-v { font-size:8px;color:#f9fafb;font-weight:600; }
+  .ins-divider { height:1px;background:#1f2937;margin:2px 0; }
+  .ins-type-row { display:flex;align-items:center;gap:3px;margin-top:2px; }
+  .ins-swatch { width:6px;height:6px;border-radius:1px;flex-shrink:0; }
+  .ins-type-label { font-size:7px;color:#9ca3af; }
+  .ins-type-count { font-size:7px;color:#f9fafb;font-weight:600;margin-left:auto; }
+
+  /* add pallet new slot animation hint */
+  .next-slot {
+    width:14px;height:11px;border-radius:2px;border:1.5px dashed #2563eb;
+    display:flex;align-items:center;justify-content:center;font-size:9px;color:#3b82f6;
+  }
+</style>
+</head>
+<body>
+
+<h1>Pallet Palette Interaction</h1>
+<p class="subtitle">How pallet types live in the sidebar and how you load them into a trailer.</p>
+
+<div class="cards">
+
+  <!-- A: Click to add (button per type) -->
+  <div class="card" data-choice="a" onclick="toggleSelect(this)">
+    <div class="card-label">
+      <div class="letter">A</div>
+      <div>
+        <div class="card-title">Click to Add</div>
+        <div class="card-desc">Button on each type · adds to next open slot</div>
+      </div>
+    </div>
+    <div class="mockup-wrap">
+      <div class="app-mock">
+        <div class="m-header">
+          <div class="m-logo">L</div><span class="m-brand">LODR</span>
+          <div class="m-spacer"></div><span class="m-tag">T-01 selected</span>
+        </div>
+        <div class="m-body">
+          <div class="m-sidebar">
+            <div class="m-sidebar-label">Palette</div>
+            <div class="pt-card">
+              <div class="pt-top"><div class="pt-swatch" style="background:#22c55e"></div><div class="pt-name">GMA</div></div>
+              <div class="pt-dims">48 × 40 in</div>
+              <div class="pt-count">In use: 6</div>
+              <div class="pt-btn">+ Add</div>
+            </div>
+            <div class="pt-card">
+              <div class="pt-top"><div class="pt-swatch" style="background:#3b82f6"></div><div class="pt-name">EUR</div></div>
+              <div class="pt-dims">47 × 31 in</div>
+              <div class="pt-count">In use: 2</div>
+              <div class="pt-btn" style="background:#1e40af">+ Add</div>
+            </div>
+            <div style="margin-top:auto;border-top:1px solid #1f2937;padding-top:6px">
+              <div class="pt-btn" style="background:#374151;color:#9ca3af">+ New Type</div>
+            </div>
+          </div>
+          <div class="m-canvas">
+            <div class="m-canvas-label">Scene</div>
+            <div class="m-trailer-wrap" style="top:22px;left:16px">
+              <div class="m-trailer-name">T-01 · Morning Run</div>
+              <div class="m-trailer-box" style="width:110px;height:70px">
+                <div class="m-pallet green">1</div><div class="m-pallet green">2</div><div class="m-pallet green">3</div>
+                <div class="m-pallet green">4</div><div class="m-pallet green">5</div><div class="m-pallet green">6</div>
+                <div class="m-pallet blue">7</div><div class="m-pallet blue">8</div>
+                <div class="next-slot">+</div>
+                <div class="m-pallet empty"></div><div class="m-pallet empty"></div>
+              </div>
+            </div>
+          </div>
+          <div class="m-inspector">
+            <div class="ins-label">T-01</div>
+            <div class="ins-big">8</div>
+            <div class="ins-sub">/ 26 cap</div>
+            <div class="ins-divider"></div>
+            <div class="ins-type-row"><div class="ins-swatch" style="background:#22c55e"></div><span class="ins-type-label">GMA</span><span class="ins-type-count">6</span></div>
+            <div class="ins-type-row"><div class="ins-swatch" style="background:#3b82f6"></div><span class="ins-type-label">EUR</span><span class="ins-type-count">2</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- B: Drag & drop -->
+  <div class="card" data-choice="b" onclick="toggleSelect(this)">
+    <div class="card-label">
+      <div class="letter">B</div>
+      <div>
+        <div class="card-title">Drag & Drop</div>
+        <div class="card-desc">Drag type card onto trailer · drop to place</div>
+      </div>
+    </div>
+    <div class="mockup-wrap">
+      <div class="app-mock">
+        <div class="m-header">
+          <div class="m-logo">L</div><span class="m-brand">LODR</span>
+          <div class="m-spacer"></div><span class="m-tag">Dragging GMA</span>
+        </div>
+        <div class="m-body">
+          <div class="m-sidebar">
+            <div class="m-sidebar-label">Palette</div>
+            <div class="pt-card draggable" style="opacity:.5;border-color:#3b82f6;">
+              <div class="pt-top"><div class="pt-swatch" style="background:#22c55e"></div><div class="pt-name">GMA</div></div>
+              <div class="pt-dims">48 × 40 in</div>
+              <div class="drag-hint">⠿ drag</div>
+            </div>
+            <div class="pt-card draggable">
+              <div class="pt-top"><div class="pt-swatch" style="background:#3b82f6"></div><div class="pt-name">EUR</div></div>
+              <div class="pt-dims">47 × 31 in</div>
+              <div class="drag-hint">⠿ drag</div>
+            </div>
+            <div style="margin-top:auto;border-top:1px solid #1f2937;padding-top:6px">
+              <div class="pt-btn" style="background:#374151;color:#9ca3af">+ New Type</div>
+            </div>
+          </div>
+          <div class="m-canvas" style="position:relative">
+            <div class="m-canvas-label">Scene</div>
+            <div class="m-trailer-wrap" style="top:22px;left:16px">
+              <div class="m-trailer-name">T-01 · Morning Run</div>
+              <div class="m-trailer-box" style="width:110px;height:70px;position:relative;">
+                <div class="m-pallet green">1</div><div class="m-pallet green">2</div><div class="m-pallet green">3</div>
+                <div class="m-pallet green">4</div><div class="m-pallet green">5</div><div class="m-pallet green">6</div>
+                <div class="m-pallet blue">7</div><div class="m-pallet blue">8</div>
+                <div class="m-pallet empty"></div><div class="m-pallet empty"></div>
+                <div class="drop-overlay">Drop here</div>
+              </div>
+            </div>
+            <!-- Ghost pallet being dragged -->
+            <div style="position:absolute;top:60px;left:90px;opacity:.75;pointer-events:none">
+              <div class="m-pallet green" style="width:18px;height:14px;font-size:7px;box-shadow:0 4px 12px rgba(0,0,0,.6);">GMA</div>
+            </div>
+          </div>
+          <div class="m-inspector">
+            <div class="ins-label">T-01</div>
+            <div class="ins-big">8</div>
+            <div class="ins-sub">/ 26 cap</div>
+            <div class="ins-divider"></div>
+            <div class="ins-type-row"><div class="ins-swatch" style="background:#22c55e"></div><span class="ins-type-label">GMA</span><span class="ins-type-count">6</span></div>
+            <div class="ins-type-row"><div class="ins-swatch" style="background:#3b82f6"></div><span class="ins-type-label">EUR</span><span class="ins-type-count">2</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- C: Both — click button OR drag -->
+  <div class="card" data-choice="c" onclick="toggleSelect(this)">
+    <div class="card-label">
+      <div class="letter">C</div>
+      <div>
+        <div class="card-title">Click OR Drag</div>
+        <div class="card-desc">Both interactions · right-click for more options</div>
+      </div>
+    </div>
+    <div class="mockup-wrap">
+      <div class="app-mock">
+        <div class="m-header">
+          <div class="m-logo">L</div><span class="m-brand">LODR</span>
+          <div class="m-spacer"></div><span class="m-tag">T-01 selected</span>
+        </div>
+        <div class="m-body">
+          <div class="m-sidebar">
+            <div class="m-sidebar-label">Palette</div>
+            <div class="pt-card draggable">
+              <div class="pt-top">
+                <div class="pt-swatch" style="background:#22c55e"></div>
+                <div class="pt-name">GMA</div>
+                <div class="pt-add-icon">+</div>
+              </div>
+              <div class="pt-dims">48 × 40 in</div>
+              <div class="pt-count">In use: 6</div>
+              <div class="drag-hint">click + or drag</div>
+            </div>
+            <div class="pt-card draggable">
+              <div class="pt-top">
+                <div class="pt-swatch" style="background:#3b82f6"></div>
+                <div class="pt-name">EUR</div>
+                <div class="pt-add-icon" style="background:#1e40af">+</div>
+              </div>
+              <div class="pt-dims">47 × 31 in</div>
+              <div class="pt-count">In use: 2</div>
+              <div class="drag-hint">click + or drag</div>
+            </div>
+            <div style="margin-top:auto;border-top:1px solid #1f2937;padding-top:6px">
+              <div class="pt-btn" style="background:#374151;color:#9ca3af">+ New Type</div>
+            </div>
+          </div>
+          <div class="m-canvas" style="position:relative">
+            <div class="m-canvas-label">Scene</div>
+            <div class="m-trailer-wrap" style="top:22px;left:16px">
+              <div class="m-trailer-name">T-01 · Morning Run</div>
+              <div class="m-trailer-box" style="width:110px;height:70px;">
+                <div class="m-pallet green">1</div><div class="m-pallet green">2</div><div class="m-pallet green">3</div>
+                <div class="m-pallet green">4</div><div class="m-pallet green">5</div><div class="m-pallet green">6</div>
+                <div class="m-pallet blue">7</div><div class="m-pallet blue">8</div>
+                <div class="next-slot">+</div>
+                <div class="m-pallet empty"></div>
+              </div>
+            </div>
+            <!-- Right-click context menu shown on a pallet -->
+            <div class="ctx-menu" style="top:70px;left:90px">
+              <div class="ctx-item primary">Remove pallet</div>
+              <div class="ctx-item">Move to T-02</div>
+              <div class="ctx-item">Swap type…</div>
+            </div>
+          </div>
+          <div class="m-inspector">
+            <div class="ins-label">T-01</div>
+            <div class="ins-big">8</div>
+            <div class="ins-sub">/ 26 cap</div>
+            <div class="ins-divider"></div>
+            <div class="ins-type-row"><div class="ins-swatch" style="background:#22c55e"></div><span class="ins-type-label">GMA</span><span class="ins-type-count">6</span></div>
+            <div class="ins-type-row"><div class="ins-swatch" style="background:#3b82f6"></div><span class="ins-type-label">EUR</span><span class="ins-type-count">2</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+</body>
+</html>

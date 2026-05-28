@@ -36,28 +36,29 @@ public class PersistenceInterop(IJSRuntime js) : IAsyncDisposable
             v.GetProperty("height").GetSingle());
     }
 
-    public async Task SaveLastPalletAsync(PalletSpec pallet)
+    public async Task SaveLastPalletAsync(PalletType pallet)
     {
         var m = await GetModuleAsync();
         await m.InvokeVoidAsync("saveItem", LastUsedStore,
-            new { id = "pallet", length = pallet.Length, width = pallet.Width,
-                  height = pallet.Height, canRotate = pallet.CanRotate, quantity = pallet.Quantity });
+            new { id = "pallet", palletId = pallet.Id, name = pallet.Name,
+                  length = pallet.Length, width = pallet.Width,
+                  height = pallet.Height, canRotate = pallet.CanRotate, color = pallet.Color });
     }
 
-    public async Task<PalletSpec?> GetLastPalletAsync()
+    public async Task<PalletType?> GetLastPalletAsync()
     {
         var m = await GetModuleAsync();
         var item = await m.InvokeAsync<JsonElement?>("getItem", LastUsedStore, "pallet");
         if (item is null) return null;
         var v = item.Value;
-        int? qty = v.TryGetProperty("quantity", out var qEl) && qEl.ValueKind != JsonValueKind.Null
-            ? qEl.GetInt32() : null;
-        return new PalletSpec(
+        return new PalletType(
+            v.TryGetProperty("palletId", out var idEl) ? idEl.GetString() ?? string.Empty : string.Empty,
+            v.TryGetProperty("name", out var nameEl) ? nameEl.GetString() ?? string.Empty : string.Empty,
             v.GetProperty("length").GetSingle(),
             v.GetProperty("width").GetSingle(),
             v.GetProperty("height").GetSingle(),
             v.GetProperty("canRotate").GetBoolean(),
-            qty);
+            v.TryGetProperty("color", out var colorEl) ? colorEl.GetString() ?? "#888888" : "#888888");
     }
 
     public async Task SaveTrailerPresetAsync(string id, TrailerDimensions dims)
@@ -86,29 +87,33 @@ public class PersistenceInterop(IJSRuntime js) : IAsyncDisposable
         return result;
     }
 
-    public async Task SavePalletPresetAsync(string id, PalletSpec pallet)
+    public async Task SavePalletPresetAsync(string id, PalletType pallet)
     {
         var m = await GetModuleAsync();
         await m.InvokeVoidAsync("saveItem", PalletPresetsStore,
-            new { id, length = pallet.Length, width = pallet.Width,
-                  height = pallet.Height, canRotate = pallet.CanRotate });
+            new { id, palletId = pallet.Id, name = pallet.Name,
+                  length = pallet.Length, width = pallet.Width,
+                  height = pallet.Height, canRotate = pallet.CanRotate, color = pallet.Color });
     }
 
-    public async Task<List<(string Id, PalletSpec Spec)>> GetPalletPresetsAsync()
+    public async Task<List<(string Id, PalletType Spec)>> GetPalletPresetsAsync()
     {
         var m = await GetModuleAsync();
         var items = await m.InvokeAsync<JsonElement>("getAllItems", PalletPresetsStore);
         if (items.ValueKind == JsonValueKind.Null) return [];
-        var result = new List<(string, PalletSpec)>();
+        var result = new List<(string, PalletType)>();
         foreach (var item in items.EnumerateArray())
         {
             result.Add((
                 item.GetProperty("id").GetString()!,
-                new PalletSpec(
+                new PalletType(
+                    item.TryGetProperty("palletId", out var idEl) ? idEl.GetString() ?? string.Empty : string.Empty,
+                    item.TryGetProperty("name", out var nameEl) ? nameEl.GetString() ?? string.Empty : string.Empty,
                     item.GetProperty("length").GetSingle(),
                     item.GetProperty("width").GetSingle(),
                     item.GetProperty("height").GetSingle(),
-                    item.GetProperty("canRotate").GetBoolean())
+                    item.GetProperty("canRotate").GetBoolean(),
+                    item.TryGetProperty("color", out var colorEl) ? colorEl.GetString() ?? "#888888" : "#888888")
             ));
         }
         return result;

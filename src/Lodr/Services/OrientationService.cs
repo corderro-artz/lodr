@@ -4,9 +4,6 @@ namespace Lodr.Services;
 
 public class OrientationService
 {
-    public IReadOnlyList<(float Length, float Width)> GetOrientations(PalletSpec spec)
-        => GetOrientationsCore(spec.Length, spec.Width, spec.CanRotate);
-
     public IReadOnlyList<(float Length, float Width)> GetOrientations(PalletType type)
         => GetOrientationsCore(type.Length, type.Width, type.CanRotate);
 

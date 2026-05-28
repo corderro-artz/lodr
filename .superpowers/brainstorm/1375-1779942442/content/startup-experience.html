@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>LODR — Startup Experience</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:#030712;color:#f9fafb;font-family:system-ui,sans-serif;padding:24px 24px 80px}
+  h1{font-size:18px;font-weight:700;margin-bottom:4px}
+  .subtitle{color:#6b7280;font-size:13px;margin-bottom:24px}
+
+  .cards{display:grid;grid-template-columns:repeat(3,1fr);gap:20px}
+  .card{background:#111827;border:2px solid #1f2937;border-radius:12px;overflow:hidden;cursor:pointer;transition:border-color .15s,transform .15s}
+  .card:hover{border-color:#3b82f6;transform:translateY(-2px)}
+  .card.selected{border-color:#2563eb;box-shadow:0 0 0 3px rgba(37,99,235,.25)}
+  .card-label{background:#1f2937;padding:9px 13px;border-bottom:1px solid #374151;display:flex;align-items:center;gap:8px}
+  .letter{width:22px;height:22px;border-radius:5px;background:#2563eb;color:#fff;font-size:11px;font-weight:800;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+  .card-title{font-size:12px;font-weight:700}
+  .card-desc{font-size:10px;color:#9ca3af;margin-top:1px}
+  .mockup-wrap{padding:10px}
+
+  /* shared shell */
+  .shell{border-radius:7px;overflow:hidden;border:1px solid #374151;background:#0f172a;height:290px;display:flex;flex-direction:column;font-size:10px;position:relative}
+  .sh{background:#1e293b;border-bottom:1px solid #334155;padding:5px 10px;display:flex;align-items:center;gap:6px;flex-shrink:0}
+  .logo{width:14px;height:14px;background:#2563eb;border-radius:3px;display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:800}
+  .brand{font-size:10px;font-weight:700}
+  .sp{flex:1}
+  .btn{background:#1d4ed8;color:#fff;border-radius:3px;padding:2px 7px;font-size:8px;font-weight:600}
+  .btn-g{background:#1f2937;color:#9ca3af;border-radius:3px;padding:2px 7px;font-size:8px}
+  .tag{background:#374151;border-radius:3px;padding:1px 5px;font-size:7px;color:#9ca3af}
+  .canvas-bg{flex:1;background:#0a0f1a;position:relative;display:flex;align-items:center;justify-content:center}
+
+  /* Option A: startup modal over dark canvas */
+  .modal{
+    background:#111827;border:1px solid #374151;border-radius:10px;
+    padding:16px;width:190px;box-shadow:0 16px 48px rgba(0,0,0,.7);
+    display:flex;flex-direction:column;gap:10px
+  }
+  .modal-title{font-size:12px;font-weight:800;text-align:center}
+  .modal-sub{font-size:9px;color:#6b7280;text-align:center;margin-top:-6px}
+  .preset-list{display:flex;flex-direction:column;gap:4px}
+  .preset-row{
+    background:#1f2937;border:1px solid #374151;border-radius:5px;
+    padding:5px 8px;display:flex;align-items:center;gap:6px;cursor:pointer
+  }
+  .preset-row.active{border-color:#2563eb;background:#1e2d4f}
+  .preset-icon{width:18px;height:14px;border:1px solid #374151;border-radius:2px;background:#0d1b2e;display:flex;flex-wrap:wrap;gap:1px;padding:1px;flex-shrink:0}
+  .pi{width:5px;height:4px;background:#22c55e;border-radius:1px}
+  .pi.b{background:#3b82f6}
+  .preset-name{font-size:8px;font-weight:600;flex:1}
+  .preset-meta{font-size:7px;color:#6b7280}
+  .modal-divider{height:1px;background:#1f2937}
+  .modal-actions{display:flex;gap:6px}
+  .modal-btn{flex:1;background:#1d4ed8;color:#fff;border-radius:4px;padding:4px;font-size:8px;font-weight:700;text-align:center}
+  .modal-btn.sec{background:#1f2937;color:#9ca3af}
+
+  /* Option B: auto-restore, last workspace loads directly */
+  .restore-toast{
+    position:absolute;top:10px;left:50%;transform:translateX(-50%);
+    background:#1f2937;border:1px solid #374151;border-radius:6px;
+    padding:6px 10px;display:flex;align-items:center;gap:6px;white-space:nowrap;
+    box-shadow:0 4px 16px rgba(0,0,0,.5);z-index:10
+  }
+  .toast-dot{width:6px;height:6px;border-radius:50%;background:#22c55e;flex-shrink:0}
+  .toast-text{font-size:8px;color:#d1d5db}
+  .toast-link{font-size:8px;color:#60a5fa;text-decoration:underline;margin-left:4px}
+
+  .mini-trailer{border:1px solid #1e3a5f;background:#0d1b2e;border-radius:3px;padding:3px;display:flex;flex-wrap:wrap;gap:1px;align-content:flex-start}
+  .mp{width:10px;height:8px;border-radius:1px;display:flex;align-items:center;justify-content:center;font-size:4px;font-weight:800}
+  .mp.g{background:#22c55e;color:#052e16}
+  .mp.b{background:#3b82f6;color:#0a1628}
+  .mp.e{background:#1f2937;opacity:.3}
+  .mini-label{font-size:7px;color:#60a5fa;font-weight:600;margin-bottom:2px}
+  .mini-cap{height:2px;border-radius:1px;background:#1f2937;margin-top:3px;overflow:hidden}
+  .mini-fill{height:100%;background:#22c55e;border-radius:1px}
+
+  /* header preset dropdown for option B */
+  .preset-dropdown{
+    position:absolute;top:32px;right:8px;
+    background:#1f2937;border:1px solid #374151;border-radius:6px;
+    padding:5px;min-width:110px;box-shadow:0 8px 24px rgba(0,0,0,.5);z-index:20
+  }
+  .pd-item{padding:4px 8px;font-size:8px;color:#d1d5db;border-radius:3px;display:flex;align-items:center;gap:5px}
+  .pd-item.hdr{color:#6b7280;font-size:7px;text-transform:uppercase;letter-spacing:.05em}
+  .pd-item.action{color:#60a5fa}
+  .pd-divider{height:1px;background:#374151;margin:3px 0}
+
+  /* Option C: simple sidebar panel on left instead of modal */
+  .sidebar-start{background:#111827;border-right:1px solid #1f2937;width:120px;flex-shrink:0;display:flex;flex-direction:column;padding:10px;gap:8px}
+  .ss-title{font-size:9px;font-weight:700;color:#f9fafb}
+  .ss-sub{font-size:7px;color:#6b7280;margin-top:-4px}
+  .ss-section{font-size:7px;color:#6b7280;text-transform:uppercase;letter-spacing:.05em;margin-top:4px}
+  .ss-row{background:#1f2937;border:1px solid #374151;border-radius:4px;padding:4px 6px;display:flex;align-items:center;gap:4px}
+  .ss-row.active-row{border-color:#2563eb;background:#1e2d4f}
+  .ss-dot{width:6px;height:6px;border-radius:50%;background:#374151;flex-shrink:0}
+  .ss-name{font-size:8px;flex:1}
+  .ss-meta{font-size:7px;color:#6b7280}
+  .ss-big-btn{background:#1d4ed8;color:#fff;border-radius:4px;padding:5px;font-size:8px;font-weight:700;text-align:center}
+  .ss-sec-btn{background:#1f2937;color:#9ca3af;border-radius:4px;padding:4px;font-size:8px;text-align:center}
+  .canvas-empty{flex:1;background:#070d1a;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px}
+  .ce-icon{width:32px;height:24px;border:1.5px dashed #1f2937;border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:14px;color:#1f2937}
+  .ce-hint{font-size:8px;color:#374151;text-align:center}
+</style>
+</head>
+<body>
+
+<h1>Startup / New Session Experience</h1>
+<p class="subtitle">What the app does when you open it — replaces the current step-by-step wizard.</p>
+
+<div class="cards">
+
+  <!-- A: Modal over empty canvas -->
+  <div class="card" data-choice="a" onclick="toggleSelect(this)">
+    <div class="card-label">
+      <div class="letter">A</div>
+      <div>
+        <div class="card-title">Startup modal</div>
+        <div class="card-desc">Dialog on open · pick preset or start blank</div>
+      </div>
+    </div>
+    <div class="mockup-wrap">
+      <div class="shell">
+        <div class="sh"><div class="logo">L</div><span class="brand">LODR</span><div class="sp"></div><span class="tag">No scene</span></div>
+        <div class="canvas-bg" style="filter:blur(0px)">
+          <!-- blurred bg hint -->
+          <div style="position:absolute;inset:0;background:rgba(0,0,0,.5)"></div>
+          <div class="modal">
+            <div class="modal-title">Start a scene</div>
+            <div class="modal-sub">Load a preset or start blank</div>
+            <div class="preset-list">
+              <div class="preset-row active">
+                <div class="preset-icon"><div class="pi"></div><div class="pi"></div><div class="pi b"></div><div class="pi b"></div></div>
+                <div>
+                  <div class="preset-name">AM Delivery</div>
+                  <div class="preset-meta">2 trailers · GMA + EUR</div>
+                </div>
+              </div>
+              <div class="preset-row">
+                <div class="preset-icon"><div class="pi"></div><div class="pi"></div><div class="pi"></div></div>
+                <div>
+                  <div class="preset-name">Single 53'</div>
+                  <div class="preset-meta">1 trailer · GMA only</div>
+                </div>
+              </div>
+              <div class="preset-row" style="border-style:dashed;justify-content:center;color:#6b7280">
+                <span style="font-size:8px">+ New preset…</span>
+              </div>
+            </div>
+            <div class="modal-divider"></div>
+            <div style="font-size:7px;color:#6b7280">— or —</div>
+            <div class="modal-actions">
+              <div class="modal-btn">Open preset</div>
+              <div class="modal-btn sec">Blank scene</div>
+            </div>
+            <div style="font-size:7px;color:#6b7280;text-align:center">
+              <span style="color:#60a5fa;text-decoration:underline">Load saved workspace…</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- B: Auto-restore last workspace, presets from header -->
+  <div class="card" data-choice="b" onclick="toggleSelect(this)">
+    <div class="card-label">
+      <div class="letter">B</div>
+      <div>
+        <div class="card-title">Auto-restore last session</div>
+        <div class="card-desc">Last workspace loads instantly · presets in header</div>
+      </div>
+    </div>
+    <div class="mockup-wrap">
+      <div class="shell">
+        <div class="sh" style="position:relative">
+          <div class="logo">L</div><span class="brand">LODR</span>
+          <div class="sp"></div>
+          <div class="btn-g" style="position:relative">Presets ▾</div>
+          <div class="btn-g">Save</div>
+          <!-- dropdown shown -->
+          <div class="preset-dropdown">
+            <div class="pd-item hdr">Templates</div>
+            <div class="pd-item">
+              <div style="width:6px;height:6px;border-radius:50%;background:#374151"></div>
+              AM Delivery
+            </div>
+            <div class="pd-item">
+              <div style="width:6px;height:6px;border-radius:50%;background:#374151"></div>
+              Single 53'
+            </div>
+            <div class="pd-divider"></div>
+            <div class="pd-item hdr">Saved scenes</div>
+            <div class="pd-item action">📂 Load from file…</div>
+            <div class="pd-divider"></div>
+            <div class="pd-item action">+ New preset…</div>
+          </div>
+        </div>
+        <div class="canvas-bg" style="flex-direction:column;gap:14px;align-items:flex-start;padding:16px;">
+          <!-- Restored toast -->
+          <div class="restore-toast">
+            <div class="toast-dot"></div>
+            <span class="toast-text">Restored: AM Delivery · saved 2h ago</span>
+            <span class="toast-link">Undo</span>
+          </div>
+          <!-- Two trailers restored -->
+          <div>
+            <div class="mini-label">T-01 · Morning Run</div>
+            <div class="mini-trailer" style="width:100px;height:48px">
+              <div class="mp g">1</div><div class="mp g">2</div><div class="mp g">3</div>
+              <div class="mp g">4</div><div class="mp g">5</div><div class="mp g">6</div>
+              <div class="mp b">7</div><div class="mp b">8</div>
+              <div class="mp e"></div><div class="mp e"></div>
+            </div>
+            <div class="mini-cap"><div class="mini-fill" style="width:62%"></div></div>
+          </div>
+          <div>
+            <div class="mini-label">T-02</div>
+            <div class="mini-trailer" style="width:100px;height:32px">
+              <div class="mp g">1</div><div class="mp g">2</div>
+              <div class="mp e"></div><div class="mp e"></div><div class="mp e"></div>
+            </div>
+            <div class="mini-cap"><div class="mini-fill" style="width:18%"></div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- C: Left sidebar chooser, canvas empty until confirmed -->
+  <div class="card" data-choice="c" onclick="toggleSelect(this)">
+    <div class="card-label">
+      <div class="letter">C</div>
+      <div>
+        <div class="card-title">Side panel chooser</div>
+        <div class="card-desc">Persistent left panel · select preset to load</div>
+      </div>
+    </div>
+    <div class="mockup-wrap">
+      <div class="shell">
+        <div class="sh"><div class="logo">L</div><span class="brand">LODR</span><div class="sp"></div><span class="tag">New session</span></div>
+        <div style="flex:1;display:flex;min-height:0">
+          <div class="sidebar-start">
+            <div class="ss-title">New Scene</div>
+            <div class="ss-sub">Choose a starting point</div>
+            <div class="ss-section">Presets</div>
+            <div class="ss-row active-row">
+              <div class="ss-dot" style="background:#2563eb"></div>
+              <div>
+                <div class="ss-name">AM Delivery</div>
+                <div class="ss-meta">2 trailers · GMA+EUR</div>
+              </div>
+            </div>
+            <div class="ss-row">
+              <div class="ss-dot"></div>
+              <div>
+                <div class="ss-name">Single 53'</div>
+                <div class="ss-meta">1 trailer · GMA</div>
+              </div>
+            </div>
+            <div class="ss-section" style="margin-top:6px">Saved scenes</div>
+            <div class="ss-row" style="border-style:dashed;justify-content:center">
+              <span style="font-size:8px;color:#6b7280">📂 Load file…</span>
+            </div>
+            <div style="margin-top:auto;display:flex;flex-direction:column;gap:4px">
+              <div class="ss-big-btn">Open selected</div>
+              <div class="ss-sec-btn">Start blank</div>
+              <div style="text-align:center;font-size:7px;color:#374151;margin-top:2px">+ Manage presets…</div>
+            </div>
+          </div>
+          <div class="canvas-empty">
+            <div class="ce-icon">□</div>
+            <div class="ce-hint">Select a preset<br/>or start blank</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+</body>
+</html>
