@@ -8,7 +8,7 @@
     </header>
 
     <main class="flex-1 overflow-hidden">
-        @ChildContent
+        @Body
     </main>
 
     <footer class="flex-none border-t border-gray-800 px-6 py-3">
@@ -16,6 +16,4 @@
     </footer>
 </div>
 
-@code {
-    [Parameter] public RenderFragment? ChildContent { get; set; }
-}
+@inherits LayoutComponentBase
