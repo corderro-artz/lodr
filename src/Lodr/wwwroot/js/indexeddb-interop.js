@@ -1,6 +1,13 @@
 const DB_NAME = 'lodr-db';
-const DB_VERSION = 1;
-const STORES = ['trailer-presets', 'pallet-presets', 'last-used'];
+const DB_VERSION = 2;
+const STORES = [
+    'trailer-presets',
+    'pallet-presets',
+    'last-used',
+    'workspaces',
+    'workspace-presets',
+    'last-workspace-id',
+];
 
 let _dbPromise = null;
 
