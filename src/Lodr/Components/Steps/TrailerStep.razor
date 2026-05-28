@@ -1,0 +1,114 @@
+@using Lodr.Interop
+@using Lodr.Models
+@using Lodr.State
+@inject AppState AppState
+@inject PersistenceInterop Persistence
+@implements IAsyncDisposable
+
+<div class="h-full flex flex-col gap-6 p-6 max-w-2xl mx-auto">
+    <div>
+        <h2 class="text-2xl font-bold">Select Trailer</h2>
+        <p class="text-gray-400 text-sm mt-1">Choose a standard type or enter custom interior dimensions.</p>
+    </div>
+
+    <div class="flex flex-col gap-2">
+        <label class="text-xs text-gray-400 font-medium uppercase tracking-wide">Trailer Type</label>
+        <select data-trailer-type
+                class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2
+                       text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                value="@((int)_selectedType)"
+                @onchange="OnTypeChanged">
+            <option value="0">53&#x2032; Dry Van  (630 &times; 98 &times; 110 in)</option>
+            <option value="1">48&#x2032; Dry Van  (576 &times; 98 &times; 110 in)</option>
+            <option value="2">40&#x2032; Dry Van  (480 &times; 98 &times; 110 in)</option>
+            <option value="3">28&#x2032; Pup      (336 &times; 96 &times; 110 in)</option>
+            <option value="99">Custom&hellip;</option>
+        </select>
+    </div>
+
+    @if (_selectedType == TrailerType.Custom)
+    {
+        <div class="grid grid-cols-3 gap-4">
+            <div>
+                <label class="text-xs text-gray-400 font-medium uppercase tracking-wide">Length (in)</label>
+                <input type="number" data-dim="length" min="1" step="1"
+                       class="mt-1 w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2
+                              text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                       value="@_custom.Length"
+                       @onchange="e => UpdateCustom(float.Parse(e.Value!.ToString()!), _custom.Width, _custom.Height)" />
+            </div>
+            <div>
+                <label class="text-xs text-gray-400 font-medium uppercase tracking-wide">Width (in)</label>
+                <input type="number" data-dim="width" min="1" step="1"
+                       class="mt-1 w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2
+                              text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                       value="@_custom.Width"
+                       @onchange="e => UpdateCustom(_custom.Length, float.Parse(e.Value!.ToString()!), _custom.Height)" />
+            </div>
+            <div>
+                <label class="text-xs text-gray-400 font-medium uppercase tracking-wide">Height (in)</label>
+                <input type="number" data-dim="height" min="1" step="1"
+                       class="mt-1 w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2
+                              text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                       value="@_custom.Height"
+                       @onchange="e => UpdateCustom(_custom.Length, _custom.Width, float.Parse(e.Value!.ToString()!))" />
+            </div>
+        </div>
+    }
+
+    @if (AppState.Trailer is not null)
+    {
+        <div class="mt-auto bg-gray-800 rounded-xl p-4 flex gap-6 text-sm">
+            <div><p class="text-gray-500 text-xs">Length</p><p class="font-semibold">@AppState.Trailer.Length&#x22;</p></div>
+            <div><p class="text-gray-500 text-xs">Width</p><p class="font-semibold">@AppState.Trailer.Width&#x22;</p></div>
+            <div><p class="text-gray-500 text-xs">Height</p><p class="font-semibold">@AppState.Trailer.Height&#x22;</p></div>
+        </div>
+    }
+</div>
+
+@code {
+    private TrailerType _selectedType = TrailerType.Standard53;
+    private TrailerDimensions _custom = new(480f, 98f, 110f);
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Restore last-used trailer from IndexedDB
+        var last = await Persistence.GetLastTrailerAsync();
+        if (last is not null)
+        {
+            AppState.SetTrailer(last);
+            // Match to preset if possible
+            var match = TrailerDimensions.Presets
+                .FirstOrDefault(kv => kv.Value == last);
+            _selectedType = match.Key == default ? TrailerType.Custom : match.Key;
+            if (_selectedType == TrailerType.Custom) _custom = last;
+        }
+        else
+        {
+            // Default to 53'
+            AppState.SetTrailer(TrailerDimensions.Presets[TrailerType.Standard53]);
+        }
+    }
+
+    private async Task OnTypeChanged(ChangeEventArgs e)
+    {
+        _selectedType = (TrailerType)int.Parse(e.Value!.ToString()!);
+        if (_selectedType != TrailerType.Custom && TrailerDimensions.Presets.TryGetValue(_selectedType, out var preset))
+        {
+            AppState.SetTrailer(preset);
+            await Persistence.SaveLastTrailerAsync(preset);
+        }
+    }
+
+    private async Task UpdateCustom(float length, float width, float height)
+    {
+        _custom = new TrailerDimensions(length, width, height);
+        if (_custom.IsValid)
+        {
+            AppState.SetTrailer(_custom);
+            await Persistence.SaveLastTrailerAsync(_custom);
+        }
+    }
+
+    public async ValueTask DisposeAsync() => await ValueTask.CompletedTask;
+}
