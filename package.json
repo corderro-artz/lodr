@@ -2,7 +2,6 @@
   "name": "lodr",
   "version": "1.0.0",
   "description": "",
-  "main": "index.js",
   "directories": {
     "doc": "docs",
     "test": "tests"
@@ -20,7 +19,7 @@
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "type": "commonjs",
+  "type": "module",
   "bugs": {
     "url": "https://github.com/corderro-artz/lodr/issues"
   },
