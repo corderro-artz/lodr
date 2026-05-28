@@ -42,6 +42,14 @@
     @if (_showAddType)
     {
         <div class="mt-2 p-2 rounded border border-gray-600 bg-gray-800 flex flex-col gap-2">
+            <select class="bg-gray-700 rounded px-2 py-1 text-xs outline-none focus:ring-1 ring-blue-500"
+                    @onchange="OnPresetChange">
+                <option value="">— Preset sizes —</option>
+                <option value="gma">GMA Standard (48×40)</option>
+                <option value="grocery">Grocery (42×42)</option>
+                <option value="square">Square (48×48)</option>
+                <option value="custom">Custom</option>
+            </select>
             <input class="bg-gray-700 rounded px-2 py-1 text-xs outline-none focus:ring-1 ring-blue-500"
                    placeholder="Name (e.g. GMA)"
                    @bind="_newName" />
@@ -66,12 +74,38 @@
     private bool _showAddType;
     private string _newName = string.Empty;
     private float _newL = 48f, _newW = 40f, _newH = 48f;
-    private bool _newCanRotate = true;
+    private bool _newCanRotate = false;
+
+    private static readonly (string Name, float L, float W)[] Presets =
+    [
+        ("gma", 48f, 40f),
+        ("grocery", 42f, 42f),
+        ("square", 48f, 48f),
+    ];
 
     private void ShowAddType()
     {
         _showAddType = true;
         _newName = string.Empty;
+        _newL = 48f; _newW = 40f; _newH = 48f;
+    }
+
+    private void OnPresetChange(ChangeEventArgs e)
+    {
+        var val = e.Value?.ToString();
+        var preset = Presets.FirstOrDefault(p => p.Name == val);
+        if (preset != default)
+        {
+            _newName = val switch
+            {
+                "gma" => "GMA Standard",
+                "grocery" => "Grocery",
+                "square" => "Square",
+                _ => _newName
+            };
+            _newL = preset.L;
+            _newW = preset.W;
+        }
     }
 
     private void CommitAddType()

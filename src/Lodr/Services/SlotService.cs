@@ -2,7 +2,7 @@ using Lodr.Models;
 
 namespace Lodr.Services;
 
-public class SlotService(OrientationService orientationService, CapacityService capacityService)
+public class SlotService(OrientationService orientationService)
 {
     public PlacedPallet? FindNextSlot(
         TrailerDimensions trailer,
@@ -27,6 +27,7 @@ public class SlotService(OrientationService orientationService, CapacityService 
         float palletW = bestOrientation.Width;
         int cols = (int)Math.Floor(trailer.Length / palletL);
         int rows = (int)Math.Floor(trailer.Width / palletW);
+        float yOffset = (trailer.Width - rows * palletW) / 2f;
 
         // Build lookup of existing pallet rects using their actual type dims
         var existingRects = existing.Select(p =>
@@ -42,7 +43,7 @@ public class SlotService(OrientationService orientationService, CapacityService 
         for (int col = 0; col < cols; col++)
         {
             float x = col * palletL;
-            float y = row * palletW;
+            float y = yOffset + row * palletW;
             if (!Overlaps(x, y, palletL, palletW, existingRects))
                 return new PlacedPallet(nextIndex, type.Id, x, y, rotated);
         }

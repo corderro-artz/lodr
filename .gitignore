@@ -485,3 +485,13 @@ $RECYCLE.BIN/
 node_modules/
 src/Lodr/wwwroot/js/pixi-interop.js
 src/Lodr/wwwroot/css/app.min.css
+
+# Playwright MCP artifacts
+.playwright-mcp/
+
+# Temp screenshots and output files
+*.png
+dotnet-error.txt
+dotnet-output.txt
+server.err
+STACK.md

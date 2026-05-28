@@ -5,7 +5,6 @@ using Microsoft.Extensions.Logging;
 namespace Lodr.State;
 
 public class WorkspaceState(
-    CapacityService capacityService,
     SlotService slotService,
     ILogger<WorkspaceState> logger)
 {
@@ -101,11 +100,6 @@ public class WorkspaceState(
             logger.LogWarning("TryAddPallet: trailer={TrailerId} type={TypeId} not found", trailerId, typeId);
             return false;
         }
-        if (capacityService.GetFullState(trailer, Current.PalletTypes) == FullState.Full)
-        {
-            logger.LogInformation("TryAddPallet: {TrailerId} is full", trailerId);
-            return false;
-        }
         int nextIndex = trailer.PlacedPallets.Count == 0
             ? 1
             : trailer.PlacedPallets.Max(p => p.Index) + 1;
@@ -120,7 +114,9 @@ public class WorkspaceState(
     public void RemovePallet(string trailerId, int palletIndex)
     {
         var trailer = GetTrailer(trailerId);
-        trailer?.PlacedPallets.RemoveAll(p => p.Index == palletIndex);
+        if (trailer is null) return;
+        trailer.PlacedPallets.RemoveAll(p => p.Index == palletIndex);
+        Repack(trailer);
         Touch();
     }
 
@@ -134,15 +130,32 @@ public class WorkspaceState(
         if (pallet is null) return false;
         var type = Current.PalletTypes.FirstOrDefault(t => t.Id == pallet.TypeId);
         if (type is null) return false;
-        if (capacityService.GetFullState(to, Current.PalletTypes) == FullState.Full) return false;
         int nextIndex = to.PlacedPallets.Count == 0 ? 1 : to.PlacedPallets.Max(p => p.Index) + 1;
         var slot = slotService.FindNextSlot(
             to.Dimensions, type, to.PlacedPallets, Current.PalletTypes, nextIndex);
         if (slot is null) return false;
         from.PlacedPallets.RemoveAll(p => p.Index == palletIndex);
+        Repack(from);
         to.PlacedPallets.Add(slot);
         Touch();
         return true;
+    }
+
+    private void Repack(TrailerInstance trailer)
+    {
+        if (Current is null) return;
+        var ordered = trailer.PlacedPallets.OrderBy(p => p.Index).ToList();
+        trailer.PlacedPallets.Clear();
+        int nextIdx = 1;
+        foreach (var p in ordered)
+        {
+            var type = Current.PalletTypes.FirstOrDefault(t => t.Id == p.TypeId);
+            if (type is null) continue;
+            var slot = slotService.FindNextSlot(
+                trailer.Dimensions, type, trailer.PlacedPallets, Current.PalletTypes, nextIdx++);
+            if (slot is not null)
+                trailer.PlacedPallets.Add(slot);
+        }
     }
 
     public void SwapPalletType(string trailerId, int palletIndex, string newTypeId)

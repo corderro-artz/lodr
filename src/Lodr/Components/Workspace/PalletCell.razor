@@ -1,84 +1,14 @@
-@inject WorkspaceState WS
-
-<div class="relative flex flex-col items-center justify-center rounded text-white text-center cursor-default select-none transition-all"
-     style="background-color: @PalletType.Color; border: 1px solid @(PalletType.Color)cc; min-width: 44px; min-height: 36px; padding: 2px;"
-     @oncontextmenu="OnContextMenu"
-     @oncontextmenu:preventDefault>
+<div class="flex flex-col items-center justify-center rounded text-white text-center select-none"
+     style="background-color: @PalletType.Color; border: 1px solid @(PalletType.Color)cc; width: 100%; height: 100%; box-sizing: border-box; overflow: hidden;">
     <span class="font-bold text-xs leading-none">@Pallet.Index</span>
     <span class="text-[9px] leading-none text-white/70 mt-0.5">@DimLabel</span>
 </div>
 
-@if (_showMenu)
-{
-    <div class="fixed inset-0 z-40" @onclick="CloseMenu"></div>
-    <div class="fixed z-50 bg-gray-800 border border-gray-700 rounded shadow-xl py-1 text-xs"
-         style="left: @(_menuX)px; top: @(_menuY)px; min-width: 160px;">
-        <button class="w-full text-left px-3 py-1.5 hover:bg-gray-700 text-red-400"
-                @onclick="Remove">Remove</button>
-        @if (OtherTrailers.Any())
-        {
-            <div class="px-3 py-1 text-gray-500">Move to…</div>
-            @foreach (var t in OtherTrailers)
-            {
-                <button class="w-full text-left px-4 py-1 hover:bg-gray-700"
-                        @onclick="() => MoveTo(t.Id)">
-                    @t.Id @(t.FriendlyName is not null ? $"· {t.FriendlyName}" : "")
-                </button>
-            }
-        }
-        @if (OtherTypes.Any())
-        {
-            <div class="px-3 py-1 text-gray-500">Swap type…</div>
-            @foreach (var type in OtherTypes)
-            {
-                <button class="w-full text-left px-4 py-1 hover:bg-gray-700"
-                        @onclick="() => SwapType(type.Id)">
-                    <span class="inline-block w-2 h-2 rounded-full mr-1" style="background:@type.Color"></span>
-                    @type.Name
-                </button>
-            }
-        }
-    </div>
-}
-
 @code {
     [Parameter, EditorRequired] public PlacedPallet Pallet { get; set; } = null!;
-    [Parameter, EditorRequired] public string TrailerId { get; set; } = null!;
     [Parameter, EditorRequired] public PalletType PalletType { get; set; } = null!;
-    [Parameter] public IReadOnlyList<TrailerInstance> OtherTrailers { get; set; } = [];
-    [Parameter] public IReadOnlyList<PalletType> OtherTypes { get; set; } = [];
-
-    private bool _showMenu;
-    private double _menuX, _menuY;
 
     private string DimLabel => Pallet.Rotated
         ? $"{PalletType.Width}×{PalletType.Length}"
         : $"{PalletType.Length}×{PalletType.Width}";
-
-    private void OnContextMenu(MouseEventArgs e)
-    {
-        _menuX = e.ClientX;
-        _menuY = e.ClientY;
-        _showMenu = true;
-    }
-
-    private void CloseMenu() => _showMenu = false;
-
-    private void Remove()
-    {
-        _showMenu = false;
-        WS.RemovePallet(TrailerId, Pallet.Index);
-    }
-
-    private void MoveTo(string toId)
-    {
-        _showMenu = false;
-        WS.TryMovePallet(TrailerId, Pallet.Index, toId);
-    }
-
-    private void SwapType(string typeId)
-    {
-        _showMenu = false;
-        WS.SwapPalletType(TrailerId, Pallet.Index, typeId);
-    }
 }

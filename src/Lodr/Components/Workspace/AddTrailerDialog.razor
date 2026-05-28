@@ -6,10 +6,10 @@
             <label class="text-xs text-gray-500 mb-1 block">Type</label>
             <select class="w-full bg-gray-800 border border-gray-700 rounded px-3 py-1.5 text-sm outline-none focus:ring-1 ring-blue-500"
                     @onchange="OnTypeChanged">
-                <option value="Standard53">53' Standard (630"×98"×110")</option>
-                <option value="Standard48">48' Standard (576"×98"×110")</option>
-                <option value="Standard40">40' Standard (480"×98"×110")</option>
-                <option value="Standard28">28' Standard (336"×96"×110")</option>
+                <option value="Standard53">53' Dry Van (636"×100"×110")</option>
+                <option value="Standard48">48' Dry Van (576"×100"×110")</option>
+                <option value="Standard40">40' Dry Van (480"×100"×110")</option>
+                <option value="Standard28">28' Pup Trailer (318"×100"×110")</option>
                 <option value="Custom">Custom…</option>
             </select>
         </div>
@@ -60,7 +60,7 @@
     [Parameter] public EventCallback OnCancel { get; set; }
 
     private bool _isCustom;
-    private float _customL = 630f, _customW = 98f, _customH = 110f;
+    private float _customL = 636f, _customW = 100f, _customH = 110f;
     private string? _friendlyName;
     private TrailerType _selectedType = TrailerType.Standard53;
 
