@@ -11,5 +11,7 @@ public record TrailerDimensions(float Length, float Width, float Height)
             [TrailerType.Standard28] = new(336f, 96f, 110f),
         };
 
+    public static bool ContainsPreset(TrailerType type) => Presets.ContainsKey(type);
+
     public bool IsValid => Length > 0 && Width > 0 && Height > 0;
 }

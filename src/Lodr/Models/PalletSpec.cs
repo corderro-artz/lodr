@@ -10,4 +10,5 @@ public record PalletSpec(
 {
     public static readonly PalletSpec GmaStandard = new(48f, 40f, 48f, CanRotate: true);
     public bool IsValid => Length > 0 && Width > 0 && Height > 0;
+    public bool HasQuantityLimit => Quantity.HasValue;
 }
