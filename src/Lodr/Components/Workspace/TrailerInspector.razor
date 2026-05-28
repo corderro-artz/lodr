@@ -1,0 +1,97 @@
+@inject WorkspaceState WS
+@inject CapacityService CapSvc
+@implements IDisposable
+
+<aside class="w-56 flex-shrink-0 flex flex-col border-l border-gray-800 bg-gray-900 overflow-y-auto">
+    @if (_trailer is null)
+    {
+        <div class="flex-1 flex items-center justify-center text-gray-600 text-xs text-center p-4">
+            Select a trailer to inspect
+        </div>
+    }
+    else
+    {
+        <div class="p-3 border-b border-gray-800">
+            <div class="flex items-center justify-between">
+                <span class="text-sm font-bold">@_trailer.Id</span>
+                <button class="text-xs text-gray-600 hover:text-gray-400 transition-colors"
+                        @onclick="() => WS.SelectTrailer(null)">×</button>
+            </div>
+            @if (_trailer.FriendlyName is not null)
+            {
+                <p class="text-xs text-gray-400 mt-0.5">@_trailer.FriendlyName</p>
+            }
+            <p class="text-xs text-gray-600 mt-1">
+                @_trailer.Dimensions.Length" × @_trailer.Dimensions.Width" × @_trailer.Dimensions.Height"
+            </p>
+        </div>
+
+        <div class="p-3 border-b border-gray-800">
+            <div class="flex justify-between text-xs mb-1">
+                <span class="text-gray-500">Utilization</span>
+                <span class="@FractionColor">@((Fraction * 100f).ToString("F0"))%</span>
+            </div>
+            <div class="h-2 rounded-full bg-gray-800">
+                <div class="h-full rounded-full transition-all @BarColor" style="width: @BarWidth"></div>
+            </div>
+            <p class="text-xs text-gray-500 mt-1">@_trailer.PlacedPallets.Count placed</p>
+        </div>
+
+        @if (WS.Current?.PalletTypes.Any() == true)
+        {
+            <div class="p-3">
+                <p class="text-xs text-gray-500 font-semibold uppercase tracking-wider mb-2">Capacity by Type</p>
+                @foreach (var type in WS.Current.PalletTypes)
+                {
+                    int cap = CapSvc.GetCapacity(_trailer.Dimensions, type);
+                    int placed = _trailer.PlacedPallets.Count(p => p.TypeId == type.Id);
+                    <div class="mb-2">
+                        <div class="flex justify-between text-xs mb-0.5">
+                            <span class="flex items-center gap-1">
+                                <span class="inline-block w-2 h-2 rounded-full flex-shrink-0" style="background: @type.Color"></span>
+                                @type.Name
+                            </span>
+                            <span class="text-gray-400">@placed / @cap</span>
+                        </div>
+                        <div class="h-1 rounded-full bg-gray-800">
+                            <div class="h-full rounded-full" style="width: @(cap == 0 ? 0 : Math.Min(placed * 100 / cap, 100))%; background: @type.Color"></div>
+                        </div>
+                    </div>
+                }
+            </div>
+        }
+    }
+</aside>
+
+@code {
+    private TrailerInstance? _trailer =>
+        WS.SelectedTrailerId is null ? null
+        : WS.Current?.Trailers.FirstOrDefault(t => t.Id == WS.SelectedTrailerId);
+
+    private FullState CurrentFullState =>
+        _trailer is null || WS.Current is null ? FullState.Normal
+        : CapSvc.GetFullState(_trailer, WS.Current.PalletTypes);
+
+    private float Fraction =>
+        _trailer is null || WS.Current is null ? 0f
+        : CapSvc.GetUsedFraction(_trailer, WS.Current.PalletTypes);
+
+    private string FractionColor => CurrentFullState switch
+    {
+        FullState.Full => "text-red-400",
+        FullState.NearFull => "text-amber-400",
+        _ => "text-green-400"
+    };
+
+    private string BarColor => CurrentFullState switch
+    {
+        FullState.Full => "bg-red-500",
+        FullState.NearFull => "bg-amber-500",
+        _ => "bg-green-500"
+    };
+
+    private string BarWidth => $"{Math.Min(Fraction * 100f, 100f):F0}%";
+
+    protected override void OnInitialized() => WS.OnChange += StateHasChanged;
+    public void Dispose() => WS.OnChange -= StateHasChanged;
+}
